@@ -1,4 +1,3 @@
-import subprocess
 import argparse
 import capstone
 from elftools.elf.elffile import ELFFile
