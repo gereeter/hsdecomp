@@ -212,7 +212,7 @@ def read_closure(parsed, pointer):
 
         parsed['interpretations'][pointer] = info_pointer
 
-        read_function_thunk(parsed, info_pointer, pointer, num_args)
+        read_function_thunk(parsed, info_pointer, retag(parsed, pointer, num_args), num_args)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty(parsed, pointer))
@@ -283,7 +283,7 @@ def read_function_thunk(parsed, pointer, main_register, num_args):
 
     extra_stack = []
     registers = {}
-    registers[parsed['main-register']] = retag(parsed, main_register, num_args)
+    registers[parsed['main-register']] = main_register
     for i in range(num_args):
         if i < len(parsed['arg-registers']):
             registers[parsed['arg-registers'][i]] = Argument(index = i, func = info_name)
