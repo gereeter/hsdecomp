@@ -58,7 +58,7 @@ def run_rewrite(func, interp):
     elif isinstance(interp, CaseDefault):
         return CaseDefault(
             scrutinee = run_rewrite(func, interp.scrutinee),
-            bound_name = interp.bound_name,
+            bound_ptr = interp.bound_ptr,
             arm = run_rewrite(func, interp.arm)
         )
     elif isinstance(interp, CaseBool):
@@ -81,7 +81,7 @@ def destroy_empty_apply(interp):
 
 def destroy_strictness(interp, new_interps):
     if isinstance(interp, CaseDefault):
-        case_argument = CaseArgument(value = interp.bound_name)
+        case_argument = CaseArgument(value = interp.arm)
         new_interps.append((case_argument, interp.scrutinee))
         return interp.arm
 
