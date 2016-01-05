@@ -230,9 +230,6 @@ def read_case(parsed, pointer, main_register, stack):
         if parsed['opts'].verbose:
             print("    Name:", show.demangle(info_name))
 
-        if main_register == None:
-            main_register = CaseArgument(inspection = pointer)
-
         first_instructions = list(disasm_from_raw(parsed, pointer.value, 4))
         if len(first_instructions) == 4 and first_instructions[0].mnemonic == 'mov' and first_instructions[1].mnemonic == 'and' and first_instructions[2].mnemonic == 'cmp' and first_instructions[3].mnemonic == 'jae':
             false_address = sum(map(lambda insn: insn.size, first_instructions)) + pointer.value
@@ -431,7 +428,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                     if stack_index == 0:
                         case_main_register = registers[parsed['main-register']]
                     else:
-                        case_main_register = None
+                        case_main_register = CaseArgument(inspection = stack[stack_index])
                     worklist.append({'type': 'case', 'pointer': stack[stack_index], 'stack': stack[stack_index:], 'main-register': case_main_register})
                     interpretation = CaseDefault(scrutinee = interpretation, bound_ptr = stack[stack_index], arm = stack[stack_index])
                     stack_index = len(stack)
