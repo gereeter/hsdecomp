@@ -51,12 +51,6 @@ def read_stack_adjustment(parsed, instructions):
             return -insn.operands[1].imm
     return 0
 
-def read_heap_check(instructions):
-    for index in range(len(instructions) - 2):
-        if instructions[index].mnemonic == 'add' and instructions[index + 1].mnemonic == 'cmp' and instructions[index + 2].mnemonic == 'ja':
-            return instructions[index].operands[1].imm
-    return 0
-
 def read_half_word(parsed, file_offset):
     return struct.unpack(parsed['halfword-struct'], parsed['binary'][file_offset:file_offset+parsed['halfword-size']])[0]
 
@@ -318,24 +312,28 @@ def read_code(parsed, pointer, extra_stack, registers):
         else:
             stack_clip = 0
 
-        heap_size = read_heap_check(instructions) // parsed['word-size']
-        if parsed['opts'].verbose:
-            print("    Heap space:", heap_size)
-
-        heap = [None] * heap_size
+        heap = []
         stack = [None] * stack_size + extra_stack
 
-        registers[parsed['heap-register']] = HeapPointer(heap_segment = pointer, index = heap_size - 1, tag = 0)
+        registers[parsed['heap-register']] = HeapPointer(heap_segment = pointer, index = -1, tag = 0)
         registers[parsed['stack-register']] = StackPointer(index = stack_size)
         for insn in instructions:
-            if insn.mnemonic == 'mov' or insn.mnemonic == 'lea':
+            if insn.mnemonic == 'add':
+                if insn.operands[0].type == capstone.x86.X86_OP_REG:
+                    reg = base_register(insn.operands[0].reg)
+                    if reg in registers:
+                        assert insn.operands[1].type == capstone.x86.X86_OP_IMM
+                        registers[reg] = pointer_offset(parsed, registers[reg], insn.operands[1].imm)
+                        if reg == parsed['heap-register']:
+                            heap += [None] * (insn.operands[1].imm // parsed['word-size'])
+            elif insn.mnemonic == 'mov' or insn.mnemonic == 'lea':
                 if insn.operands[0].type == capstone.x86.X86_OP_MEM:
-                    if base_register(insn.operands[0].mem.base) == parsed['heap-register']:
-                        heap_loc = heap_size - 1 + insn.operands[0].mem.disp // parsed['word-size']
-                        heap[heap_loc] = read_insn(parsed, insn, registers, stack)
-                    elif base_register(insn.operands[0].mem.base) == parsed['stack-register']:
-                        stack_loc = stack_size + insn.operands[0].mem.disp // parsed['word-size']
-                        stack[stack_loc] = read_insn(parsed, insn, registers, stack)
+                    output = read_memory_operand(parsed, insn.operands[0].mem, registers)
+                    if isinstance(output, HeapPointer):
+                        assert output.tag == 0
+                        heap[output.index] = read_insn(parsed, insn, registers, stack)
+                    elif isinstance(output, StackPointer):
+                        stack[output.index] = read_insn(parsed, insn, registers, stack)
                 elif insn.operands[0].type == capstone.x86.X86_OP_REG:
                     registers[base_register(insn.operands[0].reg)] = read_insn(parsed, insn, registers, stack)
 
