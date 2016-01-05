@@ -63,6 +63,16 @@ def read_half_word(parsed, file_offset):
 def read_word(parsed, file_offset):
     return struct.unpack(parsed['word-struct'], parsed['binary'][file_offset:file_offset+parsed['word-size']])[0]
 
+def retag(parsed, pointer, tag):
+    if isinstance(pointer, HeapPointer):
+        return pointer._replace(tag = tag)
+    elif isinstance(pointer, StaticValue):
+        tagmask = parsed['word-size'] - 1
+        cleared = pointer.value & ~tagmask
+        return StaticValue(value = cleared | tag)
+    else:
+        assert False,"bad pointer to retag"
+
 def pointer_offset(parsed, pointer, offset):
     if isinstance(pointer, HeapPointer):
         offset += pointer.tag
@@ -144,6 +154,7 @@ def dereference(parsed, pointer, stack):
         assert pointer.value % parsed['word-size'] == 0
         return StaticValue(value = read_word(parsed, parsed['data-offset'] + pointer.value))
     elif isinstance(pointer, HeapPointer):
+        assert pointer.tag == 0
         return parsed['heaps'][pointer.heap_segment][pointer.index]
     elif isinstance(pointer, StackPointer):
         return stack[pointer.index]
@@ -167,7 +178,9 @@ def read_closure(parsed, pointer):
                 print()
             return
 
-        info_pointer = dereference(parsed, pointer, [])
+        untagged_pointer = retag(parsed, pointer, 0)
+
+        info_pointer = dereference(parsed, untagged_pointer, [])
         assert isinstance(info_pointer, StaticValue)
 
         info_type = read_closure_type(parsed, info_pointer.value)
@@ -176,7 +189,7 @@ def read_closure(parsed, pointer):
             num_non_ptrs = read_half_word(parsed, parsed['text-offset'] + info_pointer.value - parsed['halfword-size']*3)
 
             args = []
-            arg_pointer = HeapPointer(heap_segment = pointer.heap_segment, index = pointer.index, tag = 0)
+            arg_pointer = untagged_pointer
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = pointer_offset(parsed, arg_pointer, parsed['word-size']);
                 args.append(dereference(parsed, arg_pointer, []))
@@ -273,9 +286,7 @@ def read_function_thunk(parsed, pointer, main_register, num_args):
 
     extra_stack = []
     registers = {}
-    if isinstance(main_register, HeapPointer):
-        main_register = HeapPointer(heap_segment = main_register.heap_segment, index = main_register.index, tag = num_args)
-    registers[parsed['main-register']] = main_register
+    registers[parsed['main-register']] = retag(parsed, main_register, num_args)
     for i in range(num_args):
         if i < len(parsed['arg-registers']):
             registers[parsed['arg-registers'][i]] = Argument(index = i, func = info_name)
