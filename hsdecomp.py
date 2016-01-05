@@ -2,10 +2,10 @@ import argparse
 import capstone
 from elftools.elf.elffile import ELFFile
 
-import ser
 import optimize
 import parse
 import show
+from hstypes import *
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description='Decompile a GHC-compiled Haskell program.')
@@ -65,7 +65,7 @@ if __name__ == '__main__':
     parsed['interpretations'] = {}
     parsed['num-args'] = {}
 
-    entry_pointer = {'type': 'static', 'value': parsed['name-to-address'][parsed['opts'].entry]}
+    entry_pointer = StaticValue(value = parsed['name-to-address'][parsed['opts'].entry])
 
     parse.read_closure(parsed, entry_pointer)
 
@@ -87,23 +87,22 @@ if __name__ == '__main__':
 
         while len(worklist) > 0:
             pointer = worklist.pop()
-            ser_ptr = ser.serialize(pointer)
-            if ser_ptr in seen or not ser_ptr in parsed['interpretations']:
+            if pointer in seen or not pointer in parsed['interpretations']:
                 continue
             else:
                 if len(seen) > 0 and not started:
                     print()
-                seen[ser_ptr] = None
+                seen[pointer] = None
                 started = True
 
             pretty = show.show_pretty(parsed, pointer)
             lhs = pretty
-            if ser_ptr in parsed['num-args']:
-                for i in range(parsed['num-args'][ser_ptr]):
+            if pointer in parsed['num-args']:
+                for i in range(parsed['num-args'][pointer]):
                     lhs += " "
                     lhs += pretty
                     lhs += "_arg_"
                     lhs += str(i)
-            print(lhs, "=", show.show_pretty_interpretation(parsed, parsed['interpretations'][ser_ptr]))
+            print(lhs, "=", show.show_pretty_interpretation(parsed, parsed['interpretations'][pointer]))
 
-            optimize.foreach_use(parsed['interpretations'][ser_ptr], lambda interp: (function_worklist if ser.serialize(interp) in parsed['num-args'] else worklist).append(interp))
+            optimize.foreach_use(parsed['interpretations'][pointer], lambda interp: (function_worklist if interp in parsed['num-args'] else worklist).append(interp))

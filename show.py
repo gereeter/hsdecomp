@@ -1,4 +1,4 @@
-import ser
+from hstypes import *
 
 def show_instruction(insn):
     return insn.mnemonic + "\t" + insn.op_str
@@ -13,45 +13,45 @@ def show_pretty(parsed, pointer):
     try:
         if pointer == None:
             return "None"
-        elif pointer['type'] == 'static':
-            name = get_name_for_address(parsed, pointer['value'])
+        elif isinstance(pointer, StaticValue):
+            name = get_name_for_address(parsed, pointer.value)
             if name_is_library(name):
                 name = name.split('_')[2]
             return demangle(name)
-        elif pointer['type'] == 'dynamic':
-            return "<index " + str(pointer['index']) + " in " + show_pretty(parsed, ser.deserialize(pointer['heap-segment'])) + "'s heap, tag " + str(pointer['tag']) + ">"
-        elif pointer['type'] == 'argument':
-            return demangle(pointer['stack-segment']) + "_arg_" + str(pointer['index'])
-        elif pointer['type'] == 'case-argument':
-            return pointer['value'] + "_case_input"
-        elif pointer['type'] == 'unknown':
+        elif isinstance(pointer, HeapPointer):
+            return "<index " + str(pointer.index) + " in " + show_pretty(parsed, pointer.heap_segment) + "'s heap, tag " + str(pointer.tag) + ">"
+        elif isinstance(pointer, Argument):
+            return demangle(pointer.func) + "_arg_" + str(pointer.index)
+        elif isinstance(pointer, CaseArgument):
+            return pointer.value + "_case_input"
+        elif isinstance(pointer, UnknownValue):
             return "!unknown!"
         else:
-            return "<<unknown type in show_pretty: " + pointer['type'] + ">>"
+            return "<<unknown type in show_pretty: " + str(pointer) + ">>"
     except:
         return ("<<Error in show_pretty, pointer = " + str(pointer) + ">>")
 
 def show_pretty_nonptr(parsed, value, context):
-    assert value['type'] == 'static'
+    assert isinstance(value, StaticValue)
     if context == 'unpackCString#':
         ret = '"'
-        parsed_offset = parsed['rodata-offset'] + value['value']
+        parsed_offset = parsed['rodata-offset'] + value.value
         while parsed['binary'][parsed_offset] != 0:
             ret += chr(parsed['binary'][parsed_offset])
             parsed_offset += 1
         ret += '"'
         return ret
     else:
-        return str(value['value'])
+        return str(value.value)
 
 def show_pretty_interpretation(parsed, interp):
     return '\n'.join(render_pretty_interpretation(parsed, interp, False))
 
 def render_pretty_interpretation(parsed, interp, wants_parens):
-    if interp['type'] == 'apply':
-        func = render_pretty_interpretation(parsed, interp['func'], False)
+    if isinstance(interp, Apply):
+        func = render_pretty_interpretation(parsed, interp.func, False)
         args = []
-        for arg, pat in zip(interp['args'], interp['pattern']):
+        for arg, pat in zip(interp.args, interp.pattern):
             if pat == 'p':
                 args.append(render_pretty_interpretation(parsed, arg, True))
             elif pat == 'n':
@@ -69,8 +69,8 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
                 ret += map(lambda line: "    " + line, arg)
         else:
             ret = [func[0] + ''.join(map(lambda arg: " " + arg[0], args))]
-    elif interp['type'] == 'case-default':
-        scrutinee = render_pretty_interpretation(parsed, interp['scrutinee'], False)
+    elif isinstance(interp, CaseDefault):
+        scrutinee = render_pretty_interpretation(parsed, interp.scrutinee, False)
         if len(scrutinee) > 1:
             ret = scrutinee
             ret += ["of"]
@@ -78,20 +78,20 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
         else:
             ret = ["case " + scrutinee[0] + " of"]
 
-        arm = render_pretty_interpretation(parsed, interp['arm'], False)
-        arm[0] = demangle(interp['bound-name']) + "_case_input@_DEFAULT -> " + arm[0]
+        arm = render_pretty_interpretation(parsed, interp.arm, False)
+        arm[0] = demangle(interp.bound_name) + "_case_input@_DEFAULT -> " + arm[0]
 
         ret += map(lambda line: "    " + line, arm)
-    elif interp['type'] == 'case-bool':
-        scrutinee = render_pretty_interpretation(parsed, interp['scrutinee'], False)
+    elif isinstance(interp, CaseBool):
+        scrutinee = render_pretty_interpretation(parsed, interp.scrutinee, False)
         if len(scrutinee) > 1:
             ret = scrutinee
             ret += ["of"]
             ret[0] = "case " + ret[0]
         else:
             ret = ["case " + scrutinee[0] + " of"]
-        arm_true = render_pretty_interpretation(parsed, interp['arm-true'], False)
-        arm_false = render_pretty_interpretation(parsed, interp['arm-false'], False)
+        arm_true = render_pretty_interpretation(parsed, interp.arm_true, False)
+        arm_false = render_pretty_interpretation(parsed, interp.arm_false, False)
 
         arm_true[0] = "True -> " + arm_true[0]
         arm_true[-1] = arm_true[-1] + ","

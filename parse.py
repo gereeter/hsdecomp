@@ -2,8 +2,8 @@ import sys
 import struct
 import capstone
 
-import ser
 import show
+from hstypes import *
 
 def disasm_from_raw(parsed, address, num_insns):
     return parsed['capstone'].disasm(parsed['binary'][parsed['text-offset'] + address:], address, num_insns)
@@ -64,13 +64,13 @@ def read_word(parsed, file_offset):
     return struct.unpack(parsed['word-struct'], parsed['binary'][file_offset:file_offset+parsed['word-size']])[0]
 
 def pointer_offset(parsed, pointer, offset):
-    if pointer['type'] == 'dynamic':
-        offset += pointer['tag']
-        return {'type': 'dynamic', 'heap-segment': pointer['heap-segment'], 'index': pointer['index'] + offset // parsed['word-size'], 'tag': offset % parsed['word-size']}
-    elif pointer['type'] == 'static':
-        return {'type': 'static', 'value': pointer['value'] + offset}
-    elif pointer['type'] == 'stack-ref':
-        return {'type': 'stack-ref', 'index': pointer['index'] + offset // parsed['word-size']}
+    if isinstance(pointer, HeapPointer):
+        offset += pointer.tag
+        return HeapPointer(heap_segment = pointer.heap_segment, index = pointer.index + offset // parsed['word-size'], tag = offset % parsed['word-size'])
+    elif isinstance(pointer, StaticValue):
+        return StaticValue(value = pointer.value + offset)
+    elif isinstance(pointer, StackPointer):
+        return StackPointer(index = pointer.index + offset // parsed['word-size'])
     else:
         assert False,"bad pointer to offset"
 
@@ -79,7 +79,7 @@ def read_memory_operand(parsed, operand, registers):
         assert operand.index == capstone.x86.X86_REG_INVALID
         return pointer_offset(parsed, registers[base_register(operand.base)], operand.disp)
     else:
-        return {'type': 'unknown'}
+        return UnknownValue()
 
 def read_insn(parsed, insn, registers, stack):
     operand = insn.operands[1]
@@ -89,7 +89,7 @@ def read_insn(parsed, insn, registers, stack):
         if base_register(operand.reg) in registers:
             return registers[base_register(operand.reg)]
         else:
-            return {'type': 'unknown'}
+            return UnknownValue()
     elif operand.type == capstone.x86.X86_OP_MEM:
         pointer = read_memory_operand(parsed, operand.mem, registers)
         if insn.mnemonic == 'mov':
@@ -100,7 +100,7 @@ def read_insn(parsed, insn, registers, stack):
             assert False, "unknown instruction in read_insn"
     elif operand.type == capstone.x86.X86_OP_IMM:
         assert insn.mnemonic == 'mov'
-        return {'type': 'static', 'value': operand.imm}
+        return StaticValue(value = operand.imm)
     else:
         assert False, "unknown type of operand in read_insn"
 
@@ -140,49 +140,48 @@ def read_closure_type(parsed, address):
         return 'unknown: ' + str(type)
 
 def dereference(parsed, pointer, stack):
-    if pointer['type'] == 'static':
-        assert pointer['value'] % parsed['word-size'] == 0
-        return {'type': 'static', 'value': read_word(parsed, parsed['data-offset'] + pointer['value'])}
-    elif pointer['type'] == 'dynamic':
-        return parsed['heaps'][pointer['heap-segment']][pointer['index']]
-    elif pointer['type'] == 'stack-ref':
-        return stack[pointer['index']]
-    elif pointer['type'] == 'unknown':
-        return {'type': 'unknown'}
+    if isinstance(pointer, StaticValue):
+        assert pointer.value % parsed['word-size'] == 0
+        return StaticValue(value = read_word(parsed, parsed['data-offset'] + pointer.value))
+    elif isinstance(pointer, HeapPointer):
+        return parsed['heaps'][pointer.heap_segment][pointer.index]
+    elif isinstance(pointer, StackPointer):
+        return stack[pointer.index]
+    elif isinstance(pointer, UnknownValue):
+        return UnknownValue()
     else:
         assert False, "bad pointer dereference"
 
 def read_closure(parsed, pointer):
     try:
-        if pointer['type'] == 'argument' or pointer['type'] == 'case-argument':
+        if isinstance(pointer, Argument) or isinstance(pointer, CaseArgument):
             return
 
         if parsed['opts'].verbose:
             print("Found closure:")
             print("    Pointer:", show.show_pretty(parsed, pointer))
 
-        if pointer['type'] == 'static' and show.name_is_library(show.get_name_for_address(parsed, pointer['value'])):
+        if isinstance(pointer, StaticValue) and show.name_is_library(show.get_name_for_address(parsed, pointer.value)):
             if parsed['opts'].verbose:
                 print("    Library defined!")
                 print()
             return
 
         info_pointer = dereference(parsed, pointer, [])
-        assert info_pointer['type'] == 'static'
+        assert isinstance(info_pointer, StaticValue)
 
-        info_type = read_closure_type(parsed, info_pointer['value'])
+        info_type = read_closure_type(parsed, info_pointer.value)
         if info_type[:11] == 'constructor':
-            num_ptrs = read_half_word(parsed, parsed['text-offset'] + info_pointer['value'] - parsed['halfword-size']*4)
-            num_non_ptrs = read_half_word(parsed, parsed['text-offset'] + info_pointer['value'] - parsed['halfword-size']*3)
+            num_ptrs = read_half_word(parsed, parsed['text-offset'] + info_pointer.value - parsed['halfword-size']*4)
+            num_non_ptrs = read_half_word(parsed, parsed['text-offset'] + info_pointer.value - parsed['halfword-size']*3)
 
             args = []
-            arg_pointer = pointer
-            arg_pointer['tag'] = 0
+            arg_pointer = HeapPointer(heap_segment = pointer.heap_segment, index = pointer.index, tag = 0)
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = pointer_offset(parsed, arg_pointer, parsed['word-size']);
                 args.append(dereference(parsed, arg_pointer, []))
 
-            parsed['interpretations'][ser.serialize(pointer)] = {'type': 'apply', 'func-type': 'constructor', 'func': info_pointer, 'args': args, 'pattern': 'p' * num_ptrs + 'n' * num_non_ptrs}
+            parsed['interpretations'][pointer] = Apply(func = info_pointer, func_type = 'constructor', args = args, pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
             if parsed['opts'].verbose:
                 print()
 
@@ -191,14 +190,14 @@ def read_closure(parsed, pointer):
 
             return
         elif info_type[:8] == 'function':
-            num_args = read_num_args(parsed, info_pointer['value'])
+            num_args = read_num_args(parsed, info_pointer.value)
         else:
             num_args = 0
 
         if parsed['opts'].verbose:
             print()
 
-        parsed['interpretations'][ser.serialize(pointer)] = info_pointer
+        parsed['interpretations'][pointer] = info_pointer
 
         read_function_thunk(parsed, info_pointer, pointer, num_args)
     except:
@@ -214,25 +213,22 @@ def read_case(parsed, pointer, main_register, stack):
         if parsed['opts'].verbose:
             print("Found case inspection!")
 
-        info_name = show.get_name_for_address(parsed, pointer['value'])
+        info_name = show.get_name_for_address(parsed, pointer.value)
         if parsed['opts'].verbose:
             print("    Name:", show.demangle(info_name))
 
         if main_register == None:
-            main_register = {'type': 'case-argument', 'value': info_name}
+            main_register = CaseArgument(value = info_name)
 
-        first_instructions = list(disasm_from_raw(parsed, pointer['value'], 4))
+        first_instructions = list(disasm_from_raw(parsed, pointer.value, 4))
         if len(first_instructions) == 4 and first_instructions[0].mnemonic == 'mov' and first_instructions[1].mnemonic == 'and' and first_instructions[2].mnemonic == 'cmp' and first_instructions[3].mnemonic == 'jae':
-            false_address = sum(map(lambda insn: insn.size, first_instructions)) + pointer['value']
+            false_address = sum(map(lambda insn: insn.size, first_instructions)) + pointer.value
             true_address = first_instructions[3].operands[0].imm
 
-#            parsed['supplemental-names'][false_address] = info_name + "_case_False"
-#            parsed['supplemental-names'][true_address] = info_name + "_case_True"
+            false_pointer = StaticValue(value = false_address)
+            true_pointer = StaticValue(value = true_address)
 
-            false_pointer = {'type': 'static', 'value': false_address}
-            true_pointer = {'type': 'static', 'value': true_address}
-
-            parsed['interpretations'][ser.serialize(pointer)] = {'type': 'case-bool', 'scrutinee': {'type': 'case-argument', 'value': info_name}, 'arm-true': true_pointer, 'arm-false': false_pointer}
+            parsed['interpretations'][pointer] = CaseBool(scrutinee = CaseArgument(value = info_name), arm_true = true_pointer, arm_false = false_pointer)
 
             if parsed['opts'].verbose:
                 print()
@@ -254,7 +250,7 @@ def read_case(parsed, pointer, main_register, stack):
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    Disassembly:")
-        for insn in disasm_from(parsed, pointer['value']):
+        for insn in disasm_from(parsed, pointer.value):
             print("        " + show.show_instruction(insn))
         print()
 
@@ -262,9 +258,9 @@ def read_function_thunk(parsed, pointer, main_register, num_args):
     if parsed['opts'].verbose:
         print("Found function/thunk!")
 
-    assert pointer['type'] == 'static'
+    assert isinstance(pointer, StaticValue)
 
-    info_name = show.get_name_for_address(parsed, pointer['value'])
+    info_name = show.get_name_for_address(parsed, pointer.value)
     if parsed['opts'].verbose:
         print("    Name:", show.demangle(info_name))
         print("    Arity:", num_args)
@@ -277,32 +273,31 @@ def read_function_thunk(parsed, pointer, main_register, num_args):
 
     extra_stack = []
     registers = {}
-    main_register['tag'] = num_args
+    if isinstance(main_register, HeapPointer):
+        main_register = HeapPointer(heap_segment = main_register.heap_segment, index = main_register.index, tag = num_args)
     registers[parsed['main-register']] = main_register
     for i in range(num_args):
         if i < len(parsed['arg-registers']):
-            registers[parsed['arg-registers'][i]] = {'type': 'argument', 'index': i, 'stack-segment': info_name}
+            registers[parsed['arg-registers'][i]] = Argument(index = i, func = info_name)
         else:
-            extra_stack.append({'type': 'argument', 'index': i, 'stack-segment': info_name})
+            extra_stack.append(Argument(index = i, func = info_name))
 
     if num_args > 0:
-        parsed['num-args'][ser.serialize(pointer)] = num_args
+        parsed['num-args'][pointer] = num_args
 
     read_code(parsed, pointer, extra_stack, registers)
 
 def read_code(parsed, pointer, extra_stack, registers):
     try:
-        name = ser.serialize(pointer)
+        assert isinstance(pointer, StaticValue)
 
-        assert pointer['type'] == 'static'
-
-        if name in parsed['interpretations']:
+        if pointer in parsed['interpretations']:
             if parsed['opts'].verbose:
                 print("    Seen before!")
                 print()
             return
 
-        instructions = disasm_from(parsed, pointer['value'])
+        instructions = disasm_from(parsed, pointer.value)
 
         stack_size = read_stack_adjustment(parsed, instructions) // parsed['word-size']
         if parsed['opts'].verbose:
@@ -321,8 +316,8 @@ def read_code(parsed, pointer, extra_stack, registers):
         heap = [None] * heap_size
         stack = [None] * stack_size + extra_stack
 
-        registers[parsed['heap-register']] = {'type': 'dynamic', 'heap-segment': name, 'index': heap_size - 1, 'tag': 0}
-        registers[parsed['stack-register']] = {'type': 'stack-ref', 'index': stack_size}
+        registers[parsed['heap-register']] = HeapPointer(heap_segment = pointer, index = heap_size - 1, tag = 0)
+        registers[parsed['stack-register']] = StackPointer(index = stack_size)
         for insn in instructions:
             if insn.mnemonic == 'mov' or insn.mnemonic == 'lea':
                 if insn.operands[0].type == capstone.x86.X86_OP_MEM:
@@ -337,7 +332,7 @@ def read_code(parsed, pointer, extra_stack, registers):
 
         stack = stack[stack_clip:]
 
-        parsed['heaps'][name] = heap
+        parsed['heaps'][pointer] = heap
         if parsed['opts'].verbose:
             print("    Heap:", list(map(lambda h: show.show_pretty(parsed, h), heap)))
             print("    Stack:", list(map(lambda s: show.show_pretty(parsed, s), stack)))
@@ -347,7 +342,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                 print("    Interpretation: return", show.show_pretty(parsed, registers[parsed['main-register']]))
                 print()
 
-            parsed['interpretations'][name] = registers[parsed['main-register']]
+            parsed['interpretations'][pointer] = registers[parsed['main-register']]
 
             read_closure(parsed, registers[parsed['main-register']])
         else:
@@ -380,7 +375,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                 else:
                     num_args = read_num_args(parsed, jmp_address)
                     arg_pattern = 'p' * num_args
-                    called = {'type': 'static', 'value': jmp_address}
+                    called = StaticValue(value = jmp_address)
                     worklist.append({'type': 'function/thunk', 'pointer': called, 'main-register': registers[parsed['main-register']], 'num-args': num_args})
                     func_type = 'info'
 
@@ -396,22 +391,22 @@ def read_code(parsed, pointer, extra_stack, registers):
 
                 if parsed['opts'].verbose:
                     print("    Interpretation: call", show.show_pretty(parsed, called), "on", list(map(lambda s: show.show_pretty(parsed, s), args)))
-                interpretation = {'type': 'apply', 'func-type': func_type, 'func': called, 'args': args, 'pattern': arg_pattern}
+                interpretation = Apply(func_type = func_type, func = called, args = args, pattern = arg_pattern)
 
                 for arg, pat in zip(args, arg_pattern):
                     if pat == 'p':
                         worklist.append({'type': 'closure', 'pointer': arg})
 
             while stack_index < len(stack):
-                assert stack[stack_index]['type'] == 'static'
-                cont_name = show.get_name_for_address(parsed, stack[stack_index]['value'])
+                assert isinstance(stack[stack_index], StaticValue)
+                cont_name = show.get_name_for_address(parsed, stack[stack_index].value)
                 if cont_name[:7] == 'stg_ap_':
                     assert cont_name[-5:] == '_info'
                     arg_pattern = cont_name.split('_')[2]
                     num_extra_args = len(arg_pattern)
                     if parsed['opts'].verbose:
                         print("                    then apply the result to", list(map(lambda s: show.show_pretty(parsed, s), stack[stack_index+1:][:num_extra_args])))
-                    interpretation = {'type': 'apply', 'func-type': 'closure', 'func': interpretation, 'args': stack[stack_index+1:][:num_extra_args], 'pattern': arg_pattern}
+                    interpretation = Apply(func_type = 'closure', func = interpretation, args = stack[stack_index+1:][:num_extra_args], pattern = arg_pattern)
                     for arg in stack[stack_index+1:][:num_extra_args]:
                         worklist.append({'type': 'closure', 'pointer': arg})
                     stack_index += 1 + num_extra_args
@@ -427,12 +422,12 @@ def read_code(parsed, pointer, extra_stack, registers):
                     else:
                         case_main_register = None
                     worklist.append({'type': 'case', 'pointer': stack[stack_index], 'stack': stack[stack_index:], 'main-register': case_main_register})
-                    interpretation = {'type': 'case-default', 'scrutinee': interpretation, 'bound-name': show.get_name_for_address(parsed, stack[stack_index]['value']),  'arm': stack[stack_index]}
+                    interpretation = CaseDefault(scrutinee = interpretation, bound_name = show.get_name_for_address(parsed, stack[stack_index].value), arm = stack[stack_index])
                     stack_index = len(stack)
             if parsed['opts'].verbose:
                 print()
 
-            parsed['interpretations'][name] = interpretation
+            parsed['interpretations'][pointer] = interpretation
 
             for work in worklist:
                 if work['type'] == 'closure':
@@ -449,6 +444,6 @@ def read_code(parsed, pointer, extra_stack, registers):
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    Disassembly:")
-        for insn in disasm_from(parsed, pointer['value']):
+        for insn in disasm_from(parsed, pointer.value):
             print("        " + show.show_instruction(insn))
         print()
