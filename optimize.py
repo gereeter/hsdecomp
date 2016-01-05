@@ -81,7 +81,7 @@ def destroy_empty_apply(interp):
 
 def destroy_strictness(interp, new_interps):
     if isinstance(interp, CaseDefault):
-        case_argument = CaseArgument(value = interp.arm)
+        case_argument = CaseArgument(inspection = interp.bound_ptr)
         new_interps.append((case_argument, interp.scrutinee))
         return interp.arm
 

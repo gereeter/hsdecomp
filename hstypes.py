@@ -6,7 +6,7 @@ StaticValue = collections.namedtuple('StaticValue', 'value')
 UnknownValue = collections.namedtuple('UnknownValue', '')
 
 Argument = collections.namedtuple('Argument', 'func index')
-CaseArgument = collections.namedtuple('CaseArgument', 'value')
+CaseArgument = collections.namedtuple('CaseArgument', 'inspection')
 
 Apply = collections.namedtuple('Apply', 'func func_type args pattern')
 CaseDefault = collections.namedtuple('CaseDefault', 'scrutinee bound_ptr arm')

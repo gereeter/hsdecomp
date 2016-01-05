@@ -23,7 +23,7 @@ def show_pretty(parsed, pointer):
         elif isinstance(pointer, Argument):
             return demangle(pointer.func) + "_arg_" + str(pointer.index)
         elif isinstance(pointer, CaseArgument):
-            return show_pretty(parsed, pointer.value) + "_case_input"
+            return show_pretty(parsed, pointer.inspection) + "_case_input"
         elif isinstance(pointer, UnknownValue):
             return "!unknown!"
         else:
@@ -75,7 +75,7 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
             ret = ["case " + scrutinee[0] + " of"]
 
         arm = render_pretty_interpretation(parsed, interp.arm, False)
-        arm[0] = show_pretty(parsed, CaseArgument(value = interp.bound_ptr)) + "@_DEFAULT -> " + arm[0]
+        arm[0] = show_pretty(parsed, CaseArgument(inspection = interp.bound_ptr)) + "@_DEFAULT -> " + arm[0]
 
         ret += map(lambda line: "    " + line, arm)
     elif isinstance(interp, CaseBool):

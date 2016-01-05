@@ -231,7 +231,7 @@ def read_case(parsed, pointer, main_register, stack):
             print("    Name:", show.demangle(info_name))
 
         if main_register == None:
-            main_register = CaseArgument(value = pointer)
+            main_register = CaseArgument(inspection = pointer)
 
         first_instructions = list(disasm_from_raw(parsed, pointer.value, 4))
         if len(first_instructions) == 4 and first_instructions[0].mnemonic == 'mov' and first_instructions[1].mnemonic == 'and' and first_instructions[2].mnemonic == 'cmp' and first_instructions[3].mnemonic == 'jae':
@@ -241,7 +241,7 @@ def read_case(parsed, pointer, main_register, stack):
             false_pointer = StaticValue(value = false_address)
             true_pointer = StaticValue(value = true_address)
 
-            parsed['interpretations'][pointer] = CaseBool(scrutinee = CaseArgument(value = pointer), arm_true = true_pointer, arm_false = false_pointer)
+            parsed['interpretations'][pointer] = CaseBool(scrutinee = CaseArgument(inspection = pointer), arm_true = true_pointer, arm_false = false_pointer)
 
             if parsed['opts'].verbose:
                 print()
