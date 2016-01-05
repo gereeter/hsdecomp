@@ -221,7 +221,7 @@ def read_closure(parsed, pointer):
         print("    No Disassembly Available")
         print()
 
-def read_case(parsed, pointer, stack):
+def read_case(parsed, pointer, stack, scrutinee):
     try:
         if parsed['opts'].verbose:
             print("Found case inspection!")
@@ -238,7 +238,7 @@ def read_case(parsed, pointer, stack):
             false_pointer = StaticValue(value = false_address)
             true_pointer = StaticValue(value = true_address)
 
-            parsed['interpretations'][pointer] = CaseBool(scrutinee = CaseArgument(inspection = pointer), arm_true = true_pointer, arm_false = false_pointer)
+            parsed['interpretations'][pointer] = CaseBool(scrutinee = scrutinee, arm_true = true_pointer, arm_false = false_pointer)
 
             if parsed['opts'].verbose:
                 print()
@@ -254,6 +254,7 @@ def read_case(parsed, pointer, stack):
             read_code(parsed, false_pointer, stack, {parsed['main-register']: CaseArgument(inspection = pointer)})
         else:
             read_code(parsed, pointer, stack, {parsed['main-register']: CaseArgument(inspection = pointer)})
+            parsed['interpretations'][pointer] = CaseDefault(scrutinee = scrutinee, bound_ptr = pointer, arm = parsed['interpretations'][pointer])
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing case at", show.show_pretty(parsed, pointer))
@@ -425,8 +426,8 @@ def read_code(parsed, pointer, extra_stack, registers):
                 else:
                     if parsed['opts'].verbose:
                         print("                    then inspect using", show.show_pretty(parsed, stack[stack_index]))
-                    worklist.append({'type': 'case', 'pointer': stack[stack_index], 'stack': stack[stack_index:]})
-                    interpretation = CaseDefault(scrutinee = interpretation, bound_ptr = stack[stack_index], arm = stack[stack_index])
+                    worklist.append({'type': 'case', 'pointer': stack[stack_index], 'stack': stack[stack_index:], 'scrutinee': interpretation})
+                    interpretation = stack[stack_index]
                     stack_index = len(stack)
             if parsed['opts'].verbose:
                 print()
@@ -439,7 +440,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                 elif work['type'] == 'function/thunk':
                     read_function_thunk(parsed, work['pointer'], work['main-register'], work['num-args'])
                 elif work['type'] == 'case':
-                    read_case(parsed, work['pointer'], work['stack'])
+                    read_case(parsed, work['pointer'], work['stack'], work['scrutinee'])
                 else:
                     assert False,"bad work in worklist"
     except:
