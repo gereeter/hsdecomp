@@ -15,7 +15,7 @@ def show_pretty(parsed, pointer):
             return "None"
         elif isinstance(pointer, StaticValue):
             name = get_name_for_address(parsed, pointer.value)
-            if name_is_library(name):
+            if parsed['opts'].abbreviate_library_names and name_is_library(name):
                 name = name.split('_')[2]
             return demangle(name)
         elif isinstance(pointer, HeapPointer):
@@ -33,7 +33,7 @@ def show_pretty(parsed, pointer):
 
 def show_pretty_nonptr(parsed, value, context):
     assert isinstance(value, StaticValue)
-    if context == 'unpackCString#':
+    if isinstance(context, StaticValue) and get_name_for_address(parsed, context.value) == 'ghczmprim_GHCziCString_unpackCStringzh_closure':
         ret = '"'
         parsed_offset = parsed['rodata-offset'] + value.value
         while parsed['binary'][parsed_offset] != 0:
@@ -55,11 +55,7 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
             if pat == 'p':
                 args.append(render_pretty_interpretation(parsed, arg, True))
             elif pat == 'n':
-                if len(func) == 1:
-                    context = func[0]
-                else:
-                    context = ""
-                args.append([show_pretty_nonptr(parsed, arg, context)])
+                args.append([show_pretty_nonptr(parsed, arg, interp.func)])
             else:
                 assert False, "bad argument pattern"
 

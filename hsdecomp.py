@@ -13,6 +13,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('entry', default='Main_main_closure', nargs='?')
     arg_parser.add_argument('--ignore-strictness', action='store_true', dest='ignore_strictness')
     arg_parser.add_argument('--no-inline-once', action='store_false', dest='inline_once')
+    arg_parser.add_argument('--no-abbreviate-library-names', action='store_false', dest='abbreviate_library_names')
     arg_parser.add_argument('--verbose', action='store_true', dest='verbose')
 
     parsed = {}
