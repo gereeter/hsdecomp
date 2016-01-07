@@ -34,29 +34,6 @@ def read_memory_operand(parsed, operand, registers):
     else:
         return UnknownValue()
 
-def read_insn(parsed, insn, registers, stack):
-    operand = insn.operands[1]
-
-    if operand.type == capstone.x86.X86_OP_REG:
-        assert insn.mnemonic == 'mov'
-        if base_register(operand.reg) in registers:
-            return registers[base_register(operand.reg)]
-        else:
-            return UnknownValue()
-    elif operand.type == capstone.x86.X86_OP_MEM:
-        pointer = read_memory_operand(parsed, operand.mem, registers)
-        if insn.mnemonic == 'mov':
-            return ptrutil.dereference(parsed, pointer, stack)
-        elif insn.mnemonic == 'lea':
-            return pointer
-        else:
-            assert False, "unknown instruction in read_insn"
-    elif operand.type == capstone.x86.X86_OP_IMM:
-        assert insn.mnemonic == 'mov'
-        return StaticValue(value = operand.imm)
-    else:
-        assert False, "unknown type of operand in read_insn"
-
 class Machine:
     def __init__(self, stack, registers):
         self.stack = stack
@@ -73,13 +50,32 @@ class Machine:
                         self.registers[reg] = ptrutil.pointer_offset(parsed, self.registers[reg], insn.operands[1].imm)
                         if reg == parsed['heap-register']:
                             self.heap += [None] * (insn.operands[1].imm // parsed['word-size'])
-            elif insn.mnemonic == 'mov' or insn.mnemonic == 'lea':
-                if insn.operands[0].type == capstone.x86.X86_OP_MEM:
-                    output = read_memory_operand(parsed, insn.operands[0].mem, self.registers)
-                    if isinstance(output, HeapPointer):
-                        assert output.tag == 0
-                        self.heap[output.index] = read_insn(parsed, insn, self.registers, self.stack)
-                    elif isinstance(output, StackPointer):
-                        self.stack[output.index] = read_insn(parsed, insn, self.registers, self.stack)
-                elif insn.operands[0].type == capstone.x86.X86_OP_REG:
-                    self.registers[base_register(insn.operands[0].reg)] = read_insn(parsed, insn, self.registers, self.stack)
+            elif insn.mnemonic == 'mov':
+                self.store(parsed, insn.operands[0], self.load(parsed, insn.operands[1]))
+            elif insn.mnemonic == 'lea':
+                self.store(parsed, insn.operands[0], read_memory_operand(parsed, insn.operands[1].mem, self.registers))
+
+    def load(self, parsed, operand):
+        if operand.type == capstone.x86.X86_OP_REG:
+            if base_register(operand.reg) in self.registers:
+                return self.registers[base_register(operand.reg)]
+            else:
+                return UnknownValue()
+        elif operand.type == capstone.x86.X86_OP_MEM:
+            pointer = read_memory_operand(parsed, operand.mem, self.registers)
+            return ptrutil.dereference(parsed, pointer, self.stack)
+        elif operand.type == capstone.x86.X86_OP_IMM:
+            return StaticValue(value = operand.imm)
+        else:
+            assert False, "unknown type of operand in Machine.load"
+
+    def store(self, parsed, operand, value):
+        if operand.type == capstone.x86.X86_OP_MEM:
+            output = read_memory_operand(parsed, operand.mem, self.registers)
+            if isinstance(output, HeapPointer):
+                assert output.tag == 0
+                self.heap[output.index] = value
+            elif isinstance(output, StackPointer):
+                self.stack[output.index] = value
+        elif operand.type == capstone.x86.X86_OP_REG:
+            self.registers[base_register(operand.reg)] = value

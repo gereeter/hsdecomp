@@ -246,12 +246,11 @@ def read_code(parsed, pointer, extra_stack, registers):
         mach.simulate(parsed, instructions)
 
         stack = mach.stack[stack_clip:]
-        heap = mach.heap
         registers = mach.registers
 
-        parsed['heaps'][pointer] = heap
+        parsed['heaps'][pointer] = mach.heap
         if parsed['opts'].verbose:
-            print("    Heap:", list(map(lambda h: show.show_pretty(parsed, h), heap)))
+            print("    Heap:", list(map(lambda h: show.show_pretty(parsed, h), mach.heap)))
             print("    Stack:", list(map(lambda s: show.show_pretty(parsed, s), stack)))
 
         if instructions[-1].operands[0].type == capstone.x86.X86_OP_MEM and machine.base_register(instructions[-1].operands[0].mem.base) == parsed['stack-register']:
