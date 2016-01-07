@@ -3,6 +3,8 @@ import struct
 import copy
 import capstone
 
+import ptrutil
+import machine
 import show
 from hstypes import *
 
@@ -24,42 +26,12 @@ def disasm_from_until(parsed, address, predicate):
                 break
     return instructions
 
-def base_register(reg):
-    base_reg_table = {
-        capstone.x86.X86_REG_R8D: capstone.x86.X86_REG_R8,
-        capstone.x86.X86_REG_R9D: capstone.x86.X86_REG_R9,
-        capstone.x86.X86_REG_R10D: capstone.x86.X86_REG_R10,
-        capstone.x86.X86_REG_R11D: capstone.x86.X86_REG_R11,
-        capstone.x86.X86_REG_R12D: capstone.x86.X86_REG_R12,
-        capstone.x86.X86_REG_R13D: capstone.x86.X86_REG_R13,
-        capstone.x86.X86_REG_R14D: capstone.x86.X86_REG_R14,
-        capstone.x86.X86_REG_R15D: capstone.x86.X86_REG_R15,
-        capstone.x86.X86_REG_ESI: capstone.x86.X86_REG_RSI,
-        capstone.x86.X86_REG_EDI: capstone.x86.X86_REG_RDI,
-        capstone.x86.X86_REG_ESP: capstone.x86.X86_REG_RSP,
-        capstone.x86.X86_REG_EBP: capstone.x86.X86_REG_RBP,
-        capstone.x86.X86_REG_EAX: capstone.x86.X86_REG_RAX,
-        capstone.x86.X86_REG_EBX: capstone.x86.X86_REG_RBX,
-        capstone.x86.X86_REG_ECX: capstone.x86.X86_REG_RCX,
-        capstone.x86.X86_REG_EDX: capstone.x86.X86_REG_RDX,
-    }
-    if reg in base_reg_table:
-        return base_reg_table[reg]
-    else:
-        return reg
-
 def read_stack_adjustment(parsed, instructions):
     for insn in instructions:
-        if insn.mnemonic == 'add' and base_register(insn.operands[0].reg) == parsed['stack-register']:
+        if insn.mnemonic == 'add' and machine.base_register(insn.operands[0].reg) == parsed['stack-register']:
             assert insn.operands[1].type == capstone.x86.X86_OP_IMM
             return -insn.operands[1].imm
     return 0
-
-def read_half_word(parsed, file_offset):
-    return struct.unpack(parsed['halfword-struct'], parsed['binary'][file_offset:file_offset+parsed['halfword-size']])[0]
-
-def read_word(parsed, file_offset):
-    return struct.unpack(parsed['word-struct'], parsed['binary'][file_offset:file_offset+parsed['word-size']])[0]
 
 def retag(parsed, pointer, tag):
     if isinstance(pointer, HeapPointer):
@@ -71,49 +43,8 @@ def retag(parsed, pointer, tag):
     else:
         assert False,"bad pointer to retag"
 
-def pointer_offset(parsed, pointer, offset):
-    if isinstance(pointer, HeapPointer):
-        offset += pointer.tag
-        return HeapPointer(heap_segment = pointer.heap_segment, index = pointer.index + offset // parsed['word-size'], tag = offset % parsed['word-size'])
-    elif isinstance(pointer, StaticValue):
-        return StaticValue(value = pointer.value + offset)
-    elif isinstance(pointer, StackPointer):
-        return StackPointer(index = pointer.index + offset // parsed['word-size'])
-    else:
-        assert False,"bad pointer to offset"
-
-def read_memory_operand(parsed, operand, registers):
-    if base_register(operand.base) in registers:
-        assert operand.index == capstone.x86.X86_REG_INVALID
-        return pointer_offset(parsed, registers[base_register(operand.base)], operand.disp)
-    else:
-        return UnknownValue()
-
-def read_insn(parsed, insn, registers, stack):
-    operand = insn.operands[1]
-
-    if operand.type == capstone.x86.X86_OP_REG:
-        assert insn.mnemonic == 'mov'
-        if base_register(operand.reg) in registers:
-            return registers[base_register(operand.reg)]
-        else:
-            return UnknownValue()
-    elif operand.type == capstone.x86.X86_OP_MEM:
-        pointer = read_memory_operand(parsed, operand.mem, registers)
-        if insn.mnemonic == 'mov':
-            return dereference(parsed, pointer, stack)
-        elif insn.mnemonic == 'lea':
-            return pointer
-        else:
-            assert False, "unknown instruction in read_insn"
-    elif operand.type == capstone.x86.X86_OP_IMM:
-        assert insn.mnemonic == 'mov'
-        return StaticValue(value = operand.imm)
-    else:
-        assert False, "unknown type of operand in read_insn"
-
 def read_num_args(parsed, address):
-    return read_half_word(parsed, parsed['text-offset'] + address - parsed['halfword-size']*5)
+    return ptrutil.read_half_word(parsed, parsed['text-offset'] + address - parsed['halfword-size']*5)
 
 def read_closure_type(parsed, address):
     type_table = {
@@ -141,25 +72,11 @@ def read_closure_type(parsed, address):
         22: 'thunk (static)',
         23: 'selector'
     }
-    type = read_half_word(parsed, parsed['text-offset'] + address - parsed['halfword-size']*2)
+    type = ptrutil.read_half_word(parsed, parsed['text-offset'] + address - parsed['halfword-size']*2)
     if type in type_table:
         return type_table[type]
     else:
         return 'unknown: ' + str(type)
-
-def dereference(parsed, pointer, stack):
-    if isinstance(pointer, StaticValue):
-        assert pointer.value % parsed['word-size'] == 0
-        return StaticValue(value = read_word(parsed, parsed['data-offset'] + pointer.value))
-    elif isinstance(pointer, HeapPointer):
-        assert pointer.tag == 0
-        return parsed['heaps'][pointer.heap_segment][pointer.index]
-    elif isinstance(pointer, StackPointer):
-        return stack[pointer.index]
-    elif isinstance(pointer, UnknownValue):
-        return UnknownValue()
-    else:
-        assert False, "bad pointer dereference"
 
 def read_closure(parsed, pointer):
     try:
@@ -178,19 +95,19 @@ def read_closure(parsed, pointer):
 
         untagged_pointer = retag(parsed, pointer, 0)
 
-        info_pointer = dereference(parsed, untagged_pointer, [])
+        info_pointer = ptrutil.dereference(parsed, untagged_pointer, [])
         assert isinstance(info_pointer, StaticValue)
 
         info_type = read_closure_type(parsed, info_pointer.value)
         if info_type[:11] == 'constructor':
-            num_ptrs = read_half_word(parsed, parsed['text-offset'] + info_pointer.value - parsed['halfword-size']*4)
-            num_non_ptrs = read_half_word(parsed, parsed['text-offset'] + info_pointer.value - parsed['halfword-size']*3)
+            num_ptrs = ptrutil.read_half_word(parsed, parsed['text-offset'] + info_pointer.value - parsed['halfword-size']*4)
+            num_non_ptrs = ptrutil.read_half_word(parsed, parsed['text-offset'] + info_pointer.value - parsed['halfword-size']*3)
 
             args = []
             arg_pointer = untagged_pointer
             for i in range(num_ptrs + num_non_ptrs):
-                arg_pointer = pointer_offset(parsed, arg_pointer, parsed['word-size']);
-                args.append(dereference(parsed, arg_pointer, []))
+                arg_pointer = ptrutil.pointer_offset(parsed, arg_pointer, parsed['word-size']);
+                args.append(ptrutil.dereference(parsed, arg_pointer, []))
 
             parsed['interpretations'][pointer] = Apply(func = info_pointer, func_type = 'constructor', args = args, pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
             if parsed['opts'].verbose:
@@ -228,29 +145,14 @@ def read_case(parsed, pointer, stack, scrutinee):
         if parsed['opts'].verbose:
             print("    Name:", show.demangle(info_name))
 
-        registers = {
+        mach = machine.Machine(stack, {
             parsed['main-register']: CaseArgument(inspection = pointer),
             parsed['stack-register']: StackPointer(index = 0)
-        }
+        })
         first_instructions = disasm_from_until(parsed, pointer.value, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
+        mach.simulate(parsed, first_instructions)
 
-        #TODO: Deduplicate with read_code
-        for insn in first_instructions:
-            if insn.mnemonic == 'add':
-                if insn.operands[0].type == capstone.x86.X86_OP_REG:
-                    reg = base_register(insn.operands[0].reg)
-                    if reg in registers:
-                        assert insn.operands[1].type == capstone.x86.X86_OP_IMM
-                        registers[reg] = pointer_offset(parsed, registers[reg], insn.operands[1].imm)
-            elif insn.mnemonic == 'mov' or insn.mnemonic == 'lea':
-                if insn.operands[0].type == capstone.x86.X86_OP_MEM:
-                    output = read_memory_operand(parsed, insn.operands[0].mem, registers)
-                    if isinstance(output, StackPointer):
-                        stack[output.index] = read_insn(parsed, insn, registers, stack)
-                elif insn.operands[0].type == capstone.x86.X86_OP_REG:
-                    registers[base_register(insn.operands[0].reg)] = read_insn(parsed, insn, registers, stack)
-
-        if first_instructions[-2].mnemonic == 'cmp' and first_instructions[-2].operands[0].type == capstone.x86.X86_OP_REG and base_register(first_instructions[-2].operands[0].reg) in registers and isinstance(registers[base_register(first_instructions[-2].operands[0].reg)], CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
+        if first_instructions[-2].mnemonic == 'cmp' and first_instructions[-2].operands[0].type == capstone.x86.X86_OP_REG and machine.base_register(first_instructions[-2].operands[0].reg) in mach.registers and isinstance(mach.registers[machine.base_register(first_instructions[-2].operands[0].reg)], CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
             assert first_instructions[-1].mnemonic == 'jae'
             false_address = sum(map(lambda insn: insn.size, first_instructions)) + pointer.value
             true_address = first_instructions[-1].operands[0].imm
@@ -265,13 +167,13 @@ def read_case(parsed, pointer, stack, scrutinee):
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern: True")
-            read_code(parsed, true_pointer, stack, copy.deepcopy(registers))
+            read_code(parsed, true_pointer, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
 
             if parsed['opts'].verbose:
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern: False")
-            read_code(parsed, false_pointer, stack, copy.deepcopy(registers))
+            read_code(parsed, false_pointer, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
         else:
             read_code(parsed, pointer, stack, {parsed['main-register']: CaseArgument(inspection = pointer)})
             parsed['interpretations'][pointer] = CaseDefault(scrutinee = scrutinee, bound_ptr = pointer, arm = parsed['interpretations'][pointer])
@@ -338,39 +240,21 @@ def read_code(parsed, pointer, extra_stack, registers):
         else:
             stack_clip = 0
 
-        heap = []
-        stack = [None] * stack_size + extra_stack
-
         registers[parsed['heap-register']] = HeapPointer(heap_segment = pointer, index = -1, tag = 0)
         registers[parsed['stack-register']] = StackPointer(index = stack_size)
-        for insn in instructions:
-            if insn.mnemonic == 'add':
-                if insn.operands[0].type == capstone.x86.X86_OP_REG:
-                    reg = base_register(insn.operands[0].reg)
-                    if reg in registers:
-                        assert insn.operands[1].type == capstone.x86.X86_OP_IMM
-                        registers[reg] = pointer_offset(parsed, registers[reg], insn.operands[1].imm)
-                        if reg == parsed['heap-register']:
-                            heap += [None] * (insn.operands[1].imm // parsed['word-size'])
-            elif insn.mnemonic == 'mov' or insn.mnemonic == 'lea':
-                if insn.operands[0].type == capstone.x86.X86_OP_MEM:
-                    output = read_memory_operand(parsed, insn.operands[0].mem, registers)
-                    if isinstance(output, HeapPointer):
-                        assert output.tag == 0
-                        heap[output.index] = read_insn(parsed, insn, registers, stack)
-                    elif isinstance(output, StackPointer):
-                        stack[output.index] = read_insn(parsed, insn, registers, stack)
-                elif insn.operands[0].type == capstone.x86.X86_OP_REG:
-                    registers[base_register(insn.operands[0].reg)] = read_insn(parsed, insn, registers, stack)
+        mach = machine.Machine([None] * stack_size + extra_stack, registers)
+        mach.simulate(parsed, instructions)
 
-        stack = stack[stack_clip:]
+        stack = mach.stack[stack_clip:]
+        heap = mach.heap
+        registers = mach.registers
 
         parsed['heaps'][pointer] = heap
         if parsed['opts'].verbose:
             print("    Heap:", list(map(lambda h: show.show_pretty(parsed, h), heap)))
             print("    Stack:", list(map(lambda s: show.show_pretty(parsed, s), stack)))
 
-        if instructions[-1].operands[0].type == capstone.x86.X86_OP_MEM and base_register(instructions[-1].operands[0].mem.base) == parsed['stack-register']:
+        if instructions[-1].operands[0].type == capstone.x86.X86_OP_MEM and machine.base_register(instructions[-1].operands[0].mem.base) == parsed['stack-register']:
             if parsed['opts'].verbose:
                 print("    Interpretation: return", show.show_pretty(parsed, registers[parsed['main-register']]))
                 print()
@@ -383,7 +267,7 @@ def read_code(parsed, pointer, extra_stack, registers):
             uses = []
 
             if instructions[-1].operands[0].type == capstone.x86.X86_OP_MEM:
-                assert base_register(instructions[-1].operands[0].mem.base) == parsed['main-register']
+                assert machine.base_register(instructions[-1].operands[0].mem.base) == parsed['main-register']
                 assert instructions[-1].operands[0].mem.disp == 0
 
                 if parsed['opts'].verbose:
