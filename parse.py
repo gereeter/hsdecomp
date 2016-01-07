@@ -1,5 +1,6 @@
 import sys
 import struct
+import copy
 import capstone
 
 import show
@@ -9,13 +10,16 @@ def disasm_from_raw(parsed, address, num_insns):
     return parsed['capstone'].disasm(parsed['binary'][parsed['text-offset'] + address:], address, num_insns)
 
 def disasm_from(parsed, address):
+    return disasm_from_until(parsed, address, lambda insn: insn.mnemonic == 'jmp')
+
+def disasm_from_until(parsed, address, predicate):
     instructions = []
     incomplete = True
     while incomplete:
         for insn in disasm_from_raw(parsed, address, 20):
             address += insn.size
             instructions.append(insn)
-            if insn.mnemonic == 'jmp':
+            if predicate(insn):
                 incomplete = False
                 break
     return instructions
@@ -224,10 +228,32 @@ def read_case(parsed, pointer, stack, scrutinee):
         if parsed['opts'].verbose:
             print("    Name:", show.demangle(info_name))
 
-        first_instructions = list(disasm_from_raw(parsed, pointer.value, 4))
-        if len(first_instructions) == 4 and first_instructions[0].mnemonic == 'mov' and first_instructions[1].mnemonic == 'and' and first_instructions[2].mnemonic == 'cmp' and first_instructions[3].mnemonic == 'jae':
+        registers = {
+            parsed['main-register']: CaseArgument(inspection = pointer),
+            parsed['stack-register']: StackPointer(index = 0)
+        }
+        first_instructions = disasm_from_until(parsed, pointer.value, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
+
+        #TODO: Deduplicate with read_code
+        for insn in first_instructions:
+            if insn.mnemonic == 'add':
+                if insn.operands[0].type == capstone.x86.X86_OP_REG:
+                    reg = base_register(insn.operands[0].reg)
+                    if reg in registers:
+                        assert insn.operands[1].type == capstone.x86.X86_OP_IMM
+                        registers[reg] = pointer_offset(parsed, registers[reg], insn.operands[1].imm)
+            elif insn.mnemonic == 'mov' or insn.mnemonic == 'lea':
+                if insn.operands[0].type == capstone.x86.X86_OP_MEM:
+                    output = read_memory_operand(parsed, insn.operands[0].mem, registers)
+                    if isinstance(output, StackPointer):
+                        stack[output.index] = read_insn(parsed, insn, registers, stack)
+                elif insn.operands[0].type == capstone.x86.X86_OP_REG:
+                    registers[base_register(insn.operands[0].reg)] = read_insn(parsed, insn, registers, stack)
+
+        if first_instructions[-2].mnemonic == 'cmp' and first_instructions[-2].operands[0].type == capstone.x86.X86_OP_REG and base_register(first_instructions[-2].operands[0].reg) in registers and isinstance(registers[base_register(first_instructions[-2].operands[0].reg)], CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
+            assert first_instructions[-1].mnemonic == 'jae'
             false_address = sum(map(lambda insn: insn.size, first_instructions)) + pointer.value
-            true_address = first_instructions[3].operands[0].imm
+            true_address = first_instructions[-1].operands[0].imm
 
             false_pointer = StaticValue(value = false_address)
             true_pointer = StaticValue(value = true_address)
@@ -239,13 +265,13 @@ def read_case(parsed, pointer, stack, scrutinee):
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern: True")
-            read_code(parsed, true_pointer, stack, {parsed['main-register']: CaseArgument(inspection = pointer)})
+            read_code(parsed, true_pointer, stack, copy.deepcopy(registers))
 
             if parsed['opts'].verbose:
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern: False")
-            read_code(parsed, false_pointer, stack, {parsed['main-register']: CaseArgument(inspection = pointer)})
+            read_code(parsed, false_pointer, stack, copy.deepcopy(registers))
         else:
             read_code(parsed, pointer, stack, {parsed['main-register']: CaseArgument(inspection = pointer)})
             parsed['interpretations'][pointer] = CaseDefault(scrutinee = scrutinee, bound_ptr = pointer, arm = parsed['interpretations'][pointer])
