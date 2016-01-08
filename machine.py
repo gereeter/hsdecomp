@@ -27,13 +27,6 @@ def base_register(reg):
     else:
         return reg
 
-def read_memory_operand(parsed, operand, registers):
-    if base_register(operand.base) in registers:
-        assert operand.index == capstone.x86.X86_REG_INVALID
-        return ptrutil.pointer_offset(parsed, registers[base_register(operand.base)], operand.disp)
-    else:
-        return UnknownValue()
-
 class Machine:
     def __init__(self, settings, stack, registers):
         self.settings = settings
@@ -54,7 +47,14 @@ class Machine:
             elif insn.mnemonic == 'mov':
                 self.store(insn.operands[0], self.load(insn.operands[1]))
             elif insn.mnemonic == 'lea':
-                self.store(insn.operands[0], read_memory_operand(self.settings, insn.operands[1].mem, self.registers))
+                self.store(insn.operands[0], self.read_memory_operand(insn.operands[1].mem))
+
+    def read_memory_operand(self, operand):
+        if base_register(operand.base) in self.registers:
+            assert operand.index == capstone.x86.X86_REG_INVALID
+            return ptrutil.pointer_offset(self.settings, self.registers[base_register(operand.base)], operand.disp)
+        else:
+            return UnknownValue()
 
     def load(self, operand):
         if operand.type == capstone.x86.X86_OP_REG:
@@ -63,7 +63,7 @@ class Machine:
             else:
                 return UnknownValue()
         elif operand.type == capstone.x86.X86_OP_MEM:
-            pointer = read_memory_operand(self.settings, operand.mem, self.registers)
+            pointer = self.read_memory_operand(operand.mem)
             return ptrutil.dereference(self.settings, pointer, self.stack)
         elif operand.type == capstone.x86.X86_OP_IMM:
             return StaticValue(value = operand.imm)
@@ -72,7 +72,7 @@ class Machine:
 
     def store(self, operand, value):
         if operand.type == capstone.x86.X86_OP_MEM:
-            output = read_memory_operand(self.settings, operand.mem, self.registers)
+            output = self.read_memory_operand(operand.mem)
             if isinstance(output, HeapPointer):
                 assert output.tag == 0
                 self.heap[output.index] = value
