@@ -145,12 +145,12 @@ def read_case(parsed, pointer, stack, scrutinee):
         if parsed['opts'].verbose:
             print("    Name:", show.demangle(info_name))
 
-        mach = machine.Machine(stack, {
+        mach = machine.Machine(parsed, stack, {
             parsed['main-register']: CaseArgument(inspection = pointer),
             parsed['stack-register']: StackPointer(index = 0)
         })
         first_instructions = disasm_from_until(parsed, pointer.value, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
-        mach.simulate(parsed, first_instructions)
+        mach.simulate(first_instructions)
 
         if first_instructions[-2].mnemonic == 'cmp' and first_instructions[-2].operands[0].type == capstone.x86.X86_OP_REG and machine.base_register(first_instructions[-2].operands[0].reg) in mach.registers and isinstance(mach.registers[machine.base_register(first_instructions[-2].operands[0].reg)], CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
             assert first_instructions[-1].mnemonic == 'jae'
@@ -242,8 +242,8 @@ def read_code(parsed, pointer, extra_stack, registers):
 
         registers[parsed['heap-register']] = HeapPointer(heap_segment = pointer, index = -1, tag = 0)
         registers[parsed['stack-register']] = StackPointer(index = stack_size)
-        mach = machine.Machine([None] * stack_size + extra_stack, registers)
-        mach.simulate(parsed, instructions)
+        mach = machine.Machine(parsed, [None] * stack_size + extra_stack, registers)
+        mach.simulate(instructions)
 
         stack = mach.stack[stack_clip:]
         registers = mach.registers

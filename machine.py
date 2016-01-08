@@ -35,43 +35,44 @@ def read_memory_operand(parsed, operand, registers):
         return UnknownValue()
 
 class Machine:
-    def __init__(self, stack, registers):
+    def __init__(self, settings, stack, registers):
+        self.settings = settings
         self.stack = stack
         self.registers = registers
         self.heap = []
 
-    def simulate(self, parsed, instructions):
+    def simulate(self, instructions):
         for insn in instructions:
             if insn.mnemonic == 'add':
                 if insn.operands[0].type == capstone.x86.X86_OP_REG:
                     reg = base_register(insn.operands[0].reg)
                     if reg in self.registers:
                         assert insn.operands[1].type == capstone.x86.X86_OP_IMM
-                        self.registers[reg] = ptrutil.pointer_offset(parsed, self.registers[reg], insn.operands[1].imm)
-                        if reg == parsed['heap-register']:
-                            self.heap += [None] * (insn.operands[1].imm // parsed['word-size'])
+                        self.registers[reg] = ptrutil.pointer_offset(self.settings, self.registers[reg], insn.operands[1].imm)
+                        if reg == self.settings['heap-register']:
+                            self.heap += [None] * (insn.operands[1].imm // self.settings['word-size'])
             elif insn.mnemonic == 'mov':
-                self.store(parsed, insn.operands[0], self.load(parsed, insn.operands[1]))
+                self.store(insn.operands[0], self.load(insn.operands[1]))
             elif insn.mnemonic == 'lea':
-                self.store(parsed, insn.operands[0], read_memory_operand(parsed, insn.operands[1].mem, self.registers))
+                self.store(insn.operands[0], read_memory_operand(self.settings, insn.operands[1].mem, self.registers))
 
-    def load(self, parsed, operand):
+    def load(self, operand):
         if operand.type == capstone.x86.X86_OP_REG:
             if base_register(operand.reg) in self.registers:
                 return self.registers[base_register(operand.reg)]
             else:
                 return UnknownValue()
         elif operand.type == capstone.x86.X86_OP_MEM:
-            pointer = read_memory_operand(parsed, operand.mem, self.registers)
-            return ptrutil.dereference(parsed, pointer, self.stack)
+            pointer = read_memory_operand(self.settings, operand.mem, self.registers)
+            return ptrutil.dereference(self.settings, pointer, self.stack)
         elif operand.type == capstone.x86.X86_OP_IMM:
             return StaticValue(value = operand.imm)
         else:
             assert False, "unknown type of operand in Machine.load"
 
-    def store(self, parsed, operand, value):
+    def store(self, operand, value):
         if operand.type == capstone.x86.X86_OP_MEM:
-            output = read_memory_operand(parsed, operand.mem, self.registers)
+            output = read_memory_operand(self.settings, operand.mem, self.registers)
             if isinstance(output, HeapPointer):
                 assert output.tag == 0
                 self.heap[output.index] = value
