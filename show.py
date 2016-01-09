@@ -33,7 +33,7 @@ def show_pretty(settings, pointer):
 
 def show_pretty_nonptr(settings, value, context):
     assert isinstance(value, StaticValue)
-    if isinstance(context, StaticValue) and get_name_for_address(settings, context.value) == 'ghczmprim_GHCziCString_unpackCStringzh_closure':
+    if isinstance(context, Pointer) and isinstance(context.pointer, StaticValue) and get_name_for_address(settings, context.pointer.value) == 'ghczmprim_GHCziCString_unpackCStringzh_closure':
         ret = '"'
         parsed_offset = settings.rodata_offset + value.value
         while settings.binary[parsed_offset] != 0:
