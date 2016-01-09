@@ -145,7 +145,7 @@ def read_case(parsed, pointer, stack, scrutinee):
         if parsed['opts'].verbose:
             print("    Name:", show.demangle(info_name))
 
-        mach = machine.Machine(parsed, stack, {
+        mach = machine.Machine(parsed, copy.deepcopy(stack), {
             parsed['main-register']: CaseArgument(inspection = pointer),
             parsed['stack-register']: StackPointer(index = 0)
         })
