@@ -44,6 +44,17 @@ def show_pretty_nonptr(settings, value, context):
     else:
         return str(value.value)
 
+def show_pretty_type(settings, ty, wants_parens):
+    if isinstance(ty, UnknownType):
+        return "?"
+    elif isinstance(ty, FunctionType):
+        ret = show_pretty_type(settings, ty.arg, True) + " -> " + show_pretty_type(settings, ty.result, False)
+        if wants_parens:
+            ret = "(" + ret + ")"
+        return ret
+    elif isinstance(ty, EnumType):
+        return "|".join(ty.constructor_names)
+
 def show_pretty_tag(tag):
     if isinstance(tag, NumericTag):
         return "<tag " + str(tag.value) + ">"

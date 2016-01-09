@@ -115,7 +115,7 @@ if __name__ == '__main__':
                     lhs += str(i)
 
             if settings.opts.show_types and pointer in parsed['types']:
-                print(pretty, "::", parsed['types'][pointer])
+                print(pretty, "::", show.show_pretty_type(settings, parsed['types'][pointer], False))
             print(lhs, "=", show.show_pretty_interpretation(settings, parsed['interpretations'][pointer]))
 
             optimize.foreach_use(parsed['interpretations'][pointer], lambda interp: (function_worklist if interp in parsed['num-args'] else worklist).append(interp))
