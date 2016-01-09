@@ -13,15 +13,15 @@ def foreach_use(interp, func):
         foreach_use(interp.scrutinee, func)
         foreach_use(interp.arm_true, func)
         foreach_use(interp.arm_false, func)
-    elif isinstance(interp, StaticValue) or isinstance(interp, HeapPointer) or isinstance(interp, CaseArgument):
-        func(interp)
+    elif isinstance(interp, Pointer):
+        func(interp.pointer)
 
 def can_inline(parsed, pointer):
     return pointer in parsed['interpretations'] and not pointer in parsed['num-args']
 
 def is_cheap(parsed, pointer):
     interp = parsed['interpretations'][pointer]
-    return isinstance(interp, Argument) or isinstance(interp, CaseArgument) or isinstance(interp, StaticValue) or isinstance(interp, HeapPointer) or (isinstance(interp, Apply) and interp.func_type == 'constructor')
+    return isinstance(interp, Pointer) or (isinstance(interp, Apply) and interp.func_type == 'constructor')
 
 def run_inlining_pass(parsed, predicate):
     inlined = []
@@ -71,9 +71,9 @@ def run_rewrite(func, interp):
         return interp
 
 def do_inlining(parsed, interp, predicate, inlined):
-    if (isinstance(interp, StaticValue) or isinstance(interp, HeapPointer) or isinstance(interp, CaseArgument)) and can_inline(parsed, interp) and predicate(interp):
-        inlined.append(interp)
-        return parsed['interpretations'][interp]
+    if isinstance(interp, Pointer) and can_inline(parsed, interp.pointer) and predicate(interp.pointer):
+        inlined.append(interp.pointer)
+        return parsed['interpretations'][interp.pointer]
 
 def destroy_empty_apply(interp):
     if isinstance(interp, Apply) and len(interp.args) == 0:

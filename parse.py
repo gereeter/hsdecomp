@@ -102,7 +102,7 @@ def read_closure(parsed, pointer):
                 arg_pointer = ptrutil.pointer_offset(parsed, arg_pointer, parsed['word-size']);
                 args.append(ptrutil.dereference(parsed, arg_pointer, []))
 
-            parsed['interpretations'][pointer] = Apply(func = info_pointer, func_type = 'constructor', args = args, pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
+            parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer), func_type = 'constructor', args = list(map(Pointer, args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
             if parsed['opts'].verbose:
                 print()
 
@@ -118,7 +118,7 @@ def read_closure(parsed, pointer):
         if parsed['opts'].verbose:
             print()
 
-        parsed['interpretations'][pointer] = info_pointer
+        parsed['interpretations'][pointer] = Pointer(info_pointer)
 
         read_function_thunk(parsed, info_pointer, retag(parsed, pointer, num_args), num_args)
     except:
@@ -153,7 +153,7 @@ def read_case(parsed, pointer, stack, scrutinee):
             false_pointer = StaticValue(value = false_address)
             true_pointer = StaticValue(value = true_address)
 
-            parsed['interpretations'][pointer] = CaseBool(scrutinee = scrutinee, arm_true = true_pointer, arm_false = false_pointer)
+            parsed['interpretations'][pointer] = CaseBool(scrutinee = scrutinee, arm_true = Pointer(true_pointer), arm_false = Pointer(false_pointer))
 
             if parsed['opts'].verbose:
                 print()
@@ -241,7 +241,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                 print("    Interpretation: return", show.show_pretty(parsed, registers[parsed['main-register']]))
                 print()
 
-            parsed['interpretations'][pointer] = registers[parsed['main-register']]
+            parsed['interpretations'][pointer] = Pointer(registers[parsed['main-register']])
 
             read_closure(parsed, registers[parsed['main-register']])
         else:
@@ -256,7 +256,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                     print("    Interpretation: evaluate", show.show_pretty(parsed, registers[parsed['main-register']]))
 
                 stack_index = 0
-                interpretation = registers[parsed['main-register']]
+                interpretation = Pointer(registers[parsed['main-register']])
                 worklist.append({'type': 'closure', 'pointer': registers[parsed['main-register']]})
             elif instructions[-1].operands[0].type == capstone.x86.X86_OP_IMM:
                 jmp_address = instructions[-1].operands[0].imm
@@ -290,7 +290,7 @@ def read_code(parsed, pointer, extra_stack, registers):
 
                 if parsed['opts'].verbose:
                     print("    Interpretation: call", show.show_pretty(parsed, called), "on", list(map(lambda s: show.show_pretty(parsed, s), args)))
-                interpretation = Apply(func_type = func_type, func = called, args = args, pattern = arg_pattern)
+                interpretation = Apply(func_type = func_type, func = Pointer(called), args = list(map(Pointer, args)), pattern = arg_pattern)
 
                 for arg, pat in zip(args, arg_pattern):
                     if pat == 'p':
@@ -305,7 +305,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                     num_extra_args = len(arg_pattern)
                     if parsed['opts'].verbose:
                         print("                    then apply the result to", list(map(lambda s: show.show_pretty(parsed, s), stack[stack_index+1:][:num_extra_args])))
-                    interpretation = Apply(func_type = 'closure', func = interpretation, args = stack[stack_index+1:][:num_extra_args], pattern = arg_pattern)
+                    interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(Pointer, stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
                     for arg in stack[stack_index+1:][:num_extra_args]:
                         worklist.append({'type': 'closure', 'pointer': arg})
                     stack_index += 1 + num_extra_args
@@ -317,7 +317,7 @@ def read_code(parsed, pointer, extra_stack, registers):
                     if parsed['opts'].verbose:
                         print("                    then inspect using", show.show_pretty(parsed, stack[stack_index]))
                     worklist.append({'type': 'case', 'pointer': stack[stack_index], 'stack': stack[stack_index:], 'scrutinee': interpretation})
-                    interpretation = stack[stack_index]
+                    interpretation = Pointer(stack[stack_index])
                     stack_index = len(stack)
             if parsed['opts'].verbose:
                 print()

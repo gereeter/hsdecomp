@@ -8,6 +8,7 @@ UnknownValue = collections.namedtuple('UnknownValue', '')
 Argument = collections.namedtuple('Argument', 'func index')
 CaseArgument = collections.namedtuple('CaseArgument', 'inspection')
 
+Pointer = collections.namedtuple('Pointer', 'pointer')
 Apply = collections.namedtuple('Apply', 'func func_type args pattern')
 CaseDefault = collections.namedtuple('CaseDefault', 'scrutinee bound_ptr arm')
 CaseBool = collections.namedtuple('CaseBool', 'scrutinee arm_true arm_false')

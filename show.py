@@ -55,7 +55,7 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
             if pat == 'p':
                 args.append(render_pretty_interpretation(parsed, arg, True))
             elif pat == 'n':
-                args.append([show_pretty_nonptr(parsed, arg, interp.func)])
+                args.append([show_pretty_nonptr(parsed, arg.pointer, interp.func)])
             else:
                 assert False, "bad argument pattern"
 
@@ -95,8 +95,10 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
 
         ret += map(lambda line: "    " + line, arm_true)
         ret += map(lambda line: "    " + line, arm_false)
+    elif isinstance(interp, Pointer):
+        return [show_pretty(parsed, interp.pointer)]
     else:
-        return [show_pretty(parsed, interp)]
+        assert False, "Bad interpretation type in show_pretty_interpretation"
 
     if wants_parens:
         if len(ret) > 1:
