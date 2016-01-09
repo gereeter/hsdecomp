@@ -153,23 +153,25 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             false_pointer = StaticValue(value = false_address)
             true_pointer = StaticValue(value = true_address)
 
-            parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = [Pointer(true_pointer), Pointer(false_pointer)], tags = ['True', 'False'])
+            arms = [true_pointer, false_pointer]
+            tags = ['True', 'False']
+            stacks = [copy.deepcopy(mach.stack), copy.deepcopy(mach.stack)]
+            registers = [copy.deepcopy(mach.registers), copy.deepcopy(mach.registers)]
+        else:
+            arms = [pointer]
+            tags = ['_DEFAULT']
+            stacks = [stack]
+            registers = [{settings.rt.main_register: CaseArgument(inspection = pointer)}]
 
+        for arm, stack, regs in zip(arms, stacks, registers):
             if settings.opts.verbose:
                 print()
                 print("Found case arm:")
                 print("    From case:", info_name)
-                print("    Pattern: True")
-            read_code(settings, parsed, true_pointer, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
+                print("    Pattern:", tag)
+            read_code(settings, parsed, arm, stack, regs)
 
-            if settings.opts.verbose:
-                print("Found case arm:")
-                print("    From case:", info_name)
-                print("    Pattern: False")
-            read_code(settings, parsed, false_pointer, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
-        else:
-            read_code(settings, parsed, pointer, stack, {settings.rt.main_register: CaseArgument(inspection = pointer)})
-            parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = [parsed['interpretations'][pointer]], tags = ['_DEFAULT'])
+        parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = list(map(lambda ptr: parsed['interpretations'][ptr], arms)), tags = tags)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing case at", show.show_pretty(settings, pointer))
