@@ -75,10 +75,10 @@ if __name__ == '__main__':
     if parsed['opts'].ignore_strictness:
         optimize.run_destroy_strictness(parsed)
 
+    optimize.run_inline_cheap(parsed)
+
     if parsed['opts'].inline_once:
         optimize.run_inline_once(parsed)
-
-    optimize.run_inline_cheap(parsed)
 
     function_worklist = [entry_pointer]
     seen = {}
