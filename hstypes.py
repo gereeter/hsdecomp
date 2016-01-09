@@ -20,5 +20,11 @@ Apply = collections.namedtuple('Apply', 'func func_type args pattern')
 Case = collections.namedtuple('Case', 'scrutinee bound_ptr arms tags')
 
 # Tags
-Tag = collections.namedtuple('Tag', 'value')
+NamedTag = collections.namedtuple('NamedTag', 'name')
+NumericTag = collections.namedtuple('NumericTag', 'value')
 DefaultTag = collections.namedtuple('DefaultTag', '')
+
+# Types
+UnknownType = collections.namedtuple('UnknownType', '')
+FunctionType = collections.namedtuple('FunctionType', 'arg result')
+EnumType = collections.namedtuple('EnumType', 'constructor_names')

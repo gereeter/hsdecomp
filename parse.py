@@ -149,7 +149,7 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
     else:
         arms = [StaticValue(value = address)]
         if min_tag == max_tag:
-            tags = [Tag(value = min_tag)]
+            tags = [NumericTag(value = min_tag)]
         else:
             tags = [DefaultTag()]
         stacks = [initial_stack]

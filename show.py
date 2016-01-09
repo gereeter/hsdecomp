@@ -45,8 +45,10 @@ def show_pretty_nonptr(settings, value, context):
         return str(value.value)
 
 def show_pretty_tag(tag):
-    if isinstance(tag, Tag):
+    if isinstance(tag, NumericTag):
         return "<tag " + str(tag.value) + ">"
+    elif isinstance(tag, NamedTag):
+        return demangle(tag.name)
     elif isinstance(tag, DefaultTag):
         return "_DEFAULT"
     else:

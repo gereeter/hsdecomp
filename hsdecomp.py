@@ -5,6 +5,7 @@ from elftools.elf.elffile import ELFFile
 import optimize
 import parse
 import show
+import ty
 from hstypes import *
 
 if __name__ == '__main__':
@@ -13,6 +14,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('entry', default='Main_main_closure', nargs='?')
     arg_parser.add_argument('--ignore-strictness', action='store_true', dest='ignore_strictness')
     arg_parser.add_argument('--no-inline-once', action='store_false', dest='inline_once')
+    arg_parser.add_argument('--show-types', action='store_true', dest='show_types')
     arg_parser.add_argument('--no-abbreviate-library-names', action='store_false', dest='abbreviate_library_names')
     arg_parser.add_argument('--verbose', action='store_true', dest='verbose')
     opts = arg_parser.parse_args()
@@ -68,10 +70,16 @@ if __name__ == '__main__':
     parsed['heaps'] = {}
     parsed['interpretations'] = {}
     parsed['num-args'] = {}
+    parsed['types'] = {}
 
     entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
 
     parse.read_closure(settings, parsed, entry_pointer)
+
+    for ptr in parsed['interpretations']:
+         ty.infer_type_for(settings, parsed, ptr)
+
+    ty.run_rename_tags(settings, parsed)
 
     optimize.run_destroy_empty_apply(parsed)
     if opts.ignore_strictness:
@@ -105,6 +113,9 @@ if __name__ == '__main__':
                     lhs += pretty
                     lhs += "_arg_"
                     lhs += str(i)
+
+            if settings.opts.show_types and pointer in parsed['types']:
+                print(pretty, "::", parsed['types'][pointer])
             print(lhs, "=", show.show_pretty_interpretation(settings, parsed['interpretations'][pointer]))
 
             optimize.foreach_use(parsed['interpretations'][pointer], lambda interp: (function_worklist if interp in parsed['num-args'] else worklist).append(interp))
