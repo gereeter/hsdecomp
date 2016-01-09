@@ -26,13 +26,6 @@ def disasm_from_until(parsed, address, predicate):
                 break
     return instructions
 
-def read_stack_adjustment(parsed, instructions):
-    for insn in instructions:
-        if insn.mnemonic == 'add' and machine.base_register(insn.operands[0].reg) == parsed['stack-register']:
-            assert insn.operands[1].type == capstone.x86.X86_OP_IMM
-            return -insn.operands[1].imm
-    return 0
-
 def retag(parsed, pointer, tag):
     if isinstance(pointer, HeapPointer):
         return pointer._replace(tag = tag)
@@ -147,7 +140,7 @@ def read_case(parsed, pointer, stack, scrutinee):
 
         mach = machine.Machine(parsed, copy.deepcopy(stack), {
             parsed['main-register']: CaseArgument(inspection = pointer),
-            parsed['stack-register']: StackPointer(index = 0)
+            parsed['stack-register']: StackPointer(index = -len(stack))
         })
         first_instructions = disasm_from_until(parsed, pointer.value, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
         mach.simulate(first_instructions)
@@ -230,22 +223,12 @@ def read_code(parsed, pointer, extra_stack, registers):
 
         instructions = disasm_from(parsed, pointer.value)
 
-        stack_size = read_stack_adjustment(parsed, instructions) // parsed['word-size']
-        if parsed['opts'].verbose:
-            print("    Stack space:", stack_size)
-
-        if stack_size < 0:
-            stack_clip = -stack_size
-            stack_size = 0
-        else:
-            stack_clip = 0
-
         registers[parsed['heap-register']] = HeapPointer(heap_segment = pointer, index = -1, tag = 0)
-        registers[parsed['stack-register']] = StackPointer(index = stack_size)
-        mach = machine.Machine(parsed, [None] * stack_size + extra_stack, registers)
+        registers[parsed['stack-register']] = StackPointer(index = -len(extra_stack))
+        mach = machine.Machine(parsed, extra_stack, registers)
         mach.simulate(instructions)
 
-        stack = mach.stack[stack_clip:]
+        stack = mach.stack[registers[parsed['stack-register']].index:]
         registers = mach.registers
 
         parsed['heaps'][pointer] = mach.heap
