@@ -18,3 +18,7 @@ CaseArgument = collections.namedtuple('CaseArgument', 'inspection')
 Pointer = collections.namedtuple('Pointer', 'pointer')
 Apply = collections.namedtuple('Apply', 'func func_type args pattern')
 Case = collections.namedtuple('Case', 'scrutinee bound_ptr arms tags')
+
+# Tags
+Tag = collections.namedtuple('Tag', 'value')
+DefaultTag = collections.namedtuple('DefaultTag', '')

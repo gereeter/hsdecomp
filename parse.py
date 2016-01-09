@@ -129,6 +129,34 @@ def read_closure(settings, parsed, pointer):
         print("    No Disassembly Available")
         print()
 
+def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack, initial_registers):
+    mach = machine.Machine(settings, parsed, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
+    first_instructions = disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
+    mach.simulate(first_instructions)
+
+    if first_instructions[-2].mnemonic == 'cmp' and first_instructions[-2].operands[0].type == capstone.x86.X86_OP_REG and machine.base_register(first_instructions[-2].operands[0].reg) in mach.registers and isinstance(mach.registers[machine.base_register(first_instructions[-2].operands[0].reg)], CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
+        assert first_instructions[-1].mnemonic == 'jae'
+        small_address = sum(map(lambda insn: insn.size, first_instructions)) + address
+        large_address = first_instructions[-1].operands[0].imm
+
+        arms_small, tags_small, stacks_small, regs_small = gather_case_arms(settings, parsed, small_address, min_tag, first_instructions[-2].operands[1].imm - 1, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
+        arms_large, tags_large, stacks_large, regs_large = gather_case_arms(settings, parsed, large_address, first_instructions[-2].operands[1].imm, max_tag, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
+
+        arms = arms_small + arms_large
+        tags = tags_small + tags_large
+        stacks = stacks_small + stacks_large
+        registers = regs_small + regs_large
+    else:
+        arms = [StaticValue(value = address)]
+        if min_tag == max_tag:
+            tags = [Tag(value = min_tag)]
+        else:
+            tags = [DefaultTag()]
+        stacks = [initial_stack]
+        registers = [initial_registers]
+
+    return arms, tags, stacks, registers
+
 def read_case(settings, parsed, pointer, stack, scrutinee):
     try:
         if settings.opts.verbose:
@@ -138,32 +166,12 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
         if settings.opts.verbose:
             print("    Name:", show.demangle(info_name))
 
-        mach = machine.Machine(settings, parsed, copy.deepcopy(stack), {
+        arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
             settings.rt.main_register: CaseArgument(inspection = pointer),
             settings.rt.stack_register: StackPointer(index = -len(stack))
         })
-        first_instructions = disasm_from_until(settings, pointer.value, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
-        mach.simulate(first_instructions)
 
-        if first_instructions[-2].mnemonic == 'cmp' and first_instructions[-2].operands[0].type == capstone.x86.X86_OP_REG and machine.base_register(first_instructions[-2].operands[0].reg) in mach.registers and isinstance(mach.registers[machine.base_register(first_instructions[-2].operands[0].reg)], CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
-            assert first_instructions[-1].mnemonic == 'jae'
-            false_address = sum(map(lambda insn: insn.size, first_instructions)) + pointer.value
-            true_address = first_instructions[-1].operands[0].imm
-
-            false_pointer = StaticValue(value = false_address)
-            true_pointer = StaticValue(value = true_address)
-
-            arms = [true_pointer, false_pointer]
-            tags = ['True', 'False']
-            stacks = [copy.deepcopy(mach.stack), copy.deepcopy(mach.stack)]
-            registers = [copy.deepcopy(mach.registers), copy.deepcopy(mach.registers)]
-        else:
-            arms = [pointer]
-            tags = ['_DEFAULT']
-            stacks = [stack]
-            registers = [{settings.rt.main_register: CaseArgument(inspection = pointer)}]
-
-        for arm, stack, regs in zip(arms, stacks, registers):
+        for arm, tag, stack, regs in zip(arms, tags, stacks, registers):
             if settings.opts.verbose:
                 print()
                 print("Found case arm:")
@@ -230,8 +238,8 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
         mach = machine.Machine(settings, parsed, extra_stack, registers)
         mach.simulate(instructions)
 
-        stack = mach.stack[registers[settings.rt.stack_register].index:]
         registers = mach.registers
+        stack = mach.stack[registers[settings.rt.stack_register].index+len(mach.stack):]
 
         parsed['heaps'][pointer] = mach.heap
         if settings.opts.verbose:

@@ -44,6 +44,14 @@ def show_pretty_nonptr(settings, value, context):
     else:
         return str(value.value)
 
+def show_pretty_tag(tag):
+    if isinstance(tag, Tag):
+        return "<tag " + str(tag.value) + ">"
+    elif isinstance(tag, DefaultTag):
+        return "_DEFAULT"
+    else:
+        assert False, "Bad tag type"
+
 def show_pretty_interpretation(settings, interp):
     return '\n'.join(render_pretty_interpretation(settings, interp, False))
 
@@ -76,8 +84,8 @@ def render_pretty_interpretation(settings, interp, wants_parens):
 
         for arm, tag, idx in zip(interp.arms, interp.tags, range(len(interp.arms))):
             rendered = render_pretty_interpretation(settings, arm, False)
-            rendered[0] = tag + " -> " + rendered[0]
-            if tag == '_DEFAULT':
+            rendered[0] = show_pretty_tag(tag) + " -> " + rendered[0]
+            if isinstance(tag, DefaultTag):
                 rendered[0] = show_pretty(settings, CaseArgument(inspection = interp.bound_ptr)) + "@" + rendered[0]
             if idx < len(interp.arms) - 1:
                 rendered[-1] = rendered[-1] + ","
