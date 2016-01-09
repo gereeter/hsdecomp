@@ -6,6 +6,11 @@ bool_type = EnumType(constructor_names = ['False', 'True'])
 
 known_types = {
     'ghczmprim_GHCziClasses_zeze_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
+    'ghczmprim_GHCziClasses_znze_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
+    'ghczmprim_GHCziClasses_zgze_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
+    'ghczmprim_GHCziClasses_zlze_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
+    'ghczmprim_GHCziClasses_zg_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
+    'ghczmprim_GHCziClasses_zl_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
 }
 
 def infer_type_for(settings, parsed, pointer):
