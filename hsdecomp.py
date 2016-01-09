@@ -22,10 +22,8 @@ if __name__ == '__main__':
     if elffile.elfclass == 32:
         capstone_mode = capstone.CS_MODE_32
         runtime = Runtime(
-            halfword_size = 2,
-            halfword_struct = '<H',
-            word_size = 4,
-            word_struct = '<I',
+            halfword = WordDesc(size = 2, struct = '<H'),
+            word = WordDesc(size = 4, struct = '<I'),
             stack_register = capstone.x86.X86_REG_RBP,
             heap_register = capstone.x86.X86_REG_RDI,
             main_register = capstone.x86.X86_REG_RSI,
@@ -34,10 +32,8 @@ if __name__ == '__main__':
     elif elffile.elfclass == 64:
         capstone_mode = capstone.CS_MODE_64
         runtime = Runtime(
-            halfword_size = 4,
-            halfword_struct = '<I',
-            word_size = 8,
-            word_struct = '<Q',
+            halfword = WordDesc(size = 4, struct = '<I'),
+            word = WordDesc(size = 8, struct = '<Q'),
             stack_register = capstone.x86.X86_REG_RBP,
             heap_register = capstone.x86.X86_REG_R12,
             main_register = capstone.x86.X86_REG_RBX,

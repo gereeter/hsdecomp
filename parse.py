@@ -30,14 +30,14 @@ def retag(settings, pointer, tag):
     if isinstance(pointer, HeapPointer):
         return pointer._replace(tag = tag)
     elif isinstance(pointer, StaticValue):
-        tagmask = settings.rt.word_size - 1
+        tagmask = settings.rt.word.size - 1
         cleared = pointer.value & ~tagmask
         return StaticValue(value = cleared | tag)
     else:
         assert False,"bad pointer to retag"
 
 def read_num_args(settings, address):
-    return ptrutil.read_half_word(settings, settings.text_offset + address - settings.rt.halfword_size*5)
+    return ptrutil.read_half_word(settings, settings.text_offset + address - settings.rt.halfword.size*5)
 
 def read_closure_type(settings, address):
     type_table = {
@@ -65,7 +65,7 @@ def read_closure_type(settings, address):
         22: 'thunk (static)',
         23: 'selector'
     }
-    type = ptrutil.read_half_word(settings, settings.text_offset + address - settings.rt.halfword_size*2)
+    type = ptrutil.read_half_word(settings, settings.text_offset + address - settings.rt.halfword.size*2)
     if type in type_table:
         return type_table[type]
     else:
@@ -93,13 +93,13 @@ def read_closure(settings, parsed, pointer):
 
         info_type = read_closure_type(settings, info_pointer.value)
         if info_type[:11] == 'constructor':
-            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword_size*4)
-            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword_size*3)
+            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*4)
+            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*3)
 
             args = []
             arg_pointer = untagged_pointer
             for i in range(num_ptrs + num_non_ptrs):
-                arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word_size);
+                arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
                 args.append(ptrutil.dereference(settings, parsed, arg_pointer, []))
 
             parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer), func_type = 'constructor', args = list(map(Pointer, args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)

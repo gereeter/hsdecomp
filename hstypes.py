@@ -2,7 +2,8 @@ import collections
 
 # Settings
 Settings = collections.namedtuple('Settings', 'opts rt name_to_address address_to_name binary capstone text_offset data_offset rodata_offset')
-Runtime = collections.namedtuple('Runtime', 'halfword_size halfword_struct word_size word_struct stack_register heap_register main_register arg_registers')
+Runtime = collections.namedtuple('Runtime', 'halfword word stack_register heap_register main_register arg_registers')
+WordDesc = collections.namedtuple('WordDesc', 'size struct')
 
 # Values
 HeapPointer = collections.namedtuple('HeapPointer', 'heap_segment index tag')
