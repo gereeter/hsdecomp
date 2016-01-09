@@ -16,6 +16,8 @@ def pointer_offset(parsed, pointer, offset):
         return StaticValue(value = pointer.value + offset)
     elif isinstance(pointer, StackPointer):
         return StackPointer(index = pointer.index + offset // parsed['word-size'])
+    elif isinstance(pointer, UnknownValue):
+        return UnknownValue()
     else:
         assert False,"bad pointer to offset"
 

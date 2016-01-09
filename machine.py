@@ -37,13 +37,10 @@ class Machine:
     def simulate(self, instructions):
         for insn in instructions:
             if insn.mnemonic == 'add':
-                if insn.operands[0].type == capstone.x86.X86_OP_REG:
-                    reg = base_register(insn.operands[0].reg)
-                    if reg in self.registers:
-                        assert insn.operands[1].type == capstone.x86.X86_OP_IMM
-                        self.registers[reg] = ptrutil.pointer_offset(self.settings, self.registers[reg], insn.operands[1].imm)
-                        if reg == self.settings['heap-register']:
-                            self.heap += [None] * (insn.operands[1].imm // self.settings['word-size'])
+                assert insn.operands[1].type == capstone.x86.X86_OP_IMM
+                self.store(insn.operands[0], ptrutil.pointer_offset(self.settings, self.load(insn.operands[0]), insn.operands[1].imm))
+                if insn.operands[0].type == capstone.x86.X86_OP_REG and base_register(insn.operands[0].reg) == self.settings['heap-register']:
+                    self.heap += [None] * (insn.operands[1].imm // self.settings['word-size'])
             elif insn.mnemonic == 'mov':
                 self.store(insn.operands[0], self.load(insn.operands[1]))
             elif insn.mnemonic == 'lea':
