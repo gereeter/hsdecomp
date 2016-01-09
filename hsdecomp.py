@@ -74,12 +74,10 @@ if __name__ == '__main__':
     parse.read_closure(settings, parsed, entry_pointer)
 
     optimize.run_destroy_empty_apply(parsed)
-
     if opts.ignore_strictness:
         optimize.run_destroy_strictness(parsed)
-
+    optimize.run_delete_unused(parsed, entry_pointer)
     optimize.run_inline_cheap(parsed)
-
     if opts.inline_once:
         optimize.run_inline_once(parsed)
 

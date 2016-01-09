@@ -88,6 +88,19 @@ def run_destroy_strictness(parsed):
     for lhs, rhs in new_interps:
         parsed['interpretations'][lhs] = rhs
 
+def run_delete_unused(parsed, entry_pointer):
+    worklist = [entry_pointer]
+    saved_interps = {}
+    while len(worklist) > 0:
+        pointer = worklist.pop()
+        if pointer in saved_interps or not pointer in parsed['interpretations']:
+            continue
+
+        interp = parsed['interpretations'][pointer]
+        saved_interps[pointer] = interp
+        foreach_use(interp, lambda ptr: worklist.append(ptr))
+    parsed['interpretations'] = saved_interps
+
 def run_inline_once(parsed):
     uses = {}
 
