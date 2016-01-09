@@ -65,7 +65,7 @@ def render_pretty_interpretation(settings, interp, wants_parens):
                 ret += map(lambda line: "    " + line, arg)
         else:
             ret = [func[0] + ''.join(map(lambda arg: " " + arg[0], args))]
-    elif isinstance(interp, CaseDefault):
+    elif isinstance(interp, Case):
         scrutinee = render_pretty_interpretation(settings, interp.scrutinee, False)
         if len(scrutinee) > 1:
             ret = scrutinee
@@ -74,27 +74,15 @@ def render_pretty_interpretation(settings, interp, wants_parens):
         else:
             ret = ["case " + scrutinee[0] + " of"]
 
-        arm = render_pretty_interpretation(settings, interp.arm, False)
-        arm[0] = show_pretty(settings, CaseArgument(inspection = interp.bound_ptr)) + "@_DEFAULT -> " + arm[0]
+        for arm, tag, idx in zip(interp.arms, interp.tags, range(len(interp.arms))):
+            rendered = render_pretty_interpretation(settings, arm, False)
+            rendered[0] = tag + " -> " + rendered[0]
+            if tag == '_DEFAULT':
+                rendered[0] = show_pretty(settings, CaseArgument(inspection = interp.bound_ptr)) + "@" + rendered[0]
+            if idx < len(interp.arms) - 1:
+                rendered[-1] = rendered[-1] + ","
 
-        ret += map(lambda line: "    " + line, arm)
-    elif isinstance(interp, CaseBool):
-        scrutinee = render_pretty_interpretation(settings, interp.scrutinee, False)
-        if len(scrutinee) > 1:
-            ret = scrutinee
-            ret += ["of"]
-            ret[0] = "case " + ret[0]
-        else:
-            ret = ["case " + scrutinee[0] + " of"]
-        arm_true = render_pretty_interpretation(settings, interp.arm_true, False)
-        arm_false = render_pretty_interpretation(settings, interp.arm_false, False)
-
-        arm_true[0] = "True -> " + arm_true[0]
-        arm_true[-1] = arm_true[-1] + ","
-        arm_false[0] = "False -> " + arm_false[0]
-
-        ret += map(lambda line: "    " + line, arm_true)
-        ret += map(lambda line: "    " + line, arm_false)
+            ret += map(lambda line: "    " + line, rendered)
     elif isinstance(interp, Pointer):
         return [show_pretty(settings, interp.pointer)]
     else:

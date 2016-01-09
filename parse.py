@@ -153,7 +153,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             false_pointer = StaticValue(value = false_address)
             true_pointer = StaticValue(value = true_address)
 
-            parsed['interpretations'][pointer] = CaseBool(scrutinee = scrutinee, arm_true = Pointer(true_pointer), arm_false = Pointer(false_pointer))
+            parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = [Pointer(true_pointer), Pointer(false_pointer)], tags = ['True', 'False'])
 
             if settings.opts.verbose:
                 print()
@@ -169,7 +169,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             read_code(settings, parsed, false_pointer, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
         else:
             read_code(settings, parsed, pointer, stack, {settings.rt.main_register: CaseArgument(inspection = pointer)})
-            parsed['interpretations'][pointer] = CaseDefault(scrutinee = scrutinee, bound_ptr = pointer, arm = parsed['interpretations'][pointer])
+            parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = [parsed['interpretations'][pointer]], tags = ['_DEFAULT'])
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing case at", show.show_pretty(settings, pointer))

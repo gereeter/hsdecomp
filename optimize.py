@@ -6,13 +6,10 @@ def foreach_use(interp, func):
         for arg, pat in zip(interp.args, interp.pattern):
             if pat == 'p':
                 foreach_use(arg, func)
-    elif isinstance(interp, CaseDefault):
+    elif isinstance(interp, Case):
         foreach_use(interp.scrutinee, func)
-        foreach_use(interp.arm, func)
-    elif isinstance(interp, CaseBool):
-        foreach_use(interp.scrutinee, func)
-        foreach_use(interp.arm_true, func)
-        foreach_use(interp.arm_false, func)
+        for arm in interp.arms:
+            foreach_use(arm, func)
     elif isinstance(interp, Pointer):
         func(interp.pointer)
 
@@ -55,17 +52,12 @@ def run_rewrite(func, interp):
             args = new_args,
             pattern = interp.pattern
         )
-    elif isinstance(interp, CaseDefault):
-        return CaseDefault(
+    elif isinstance(interp, Case):
+        return Case(
             scrutinee = run_rewrite(func, interp.scrutinee),
             bound_ptr = interp.bound_ptr,
-            arm = run_rewrite(func, interp.arm)
-        )
-    elif isinstance(interp, CaseBool):
-        return CaseBool(
-            scrutinee = run_rewrite(func, interp.scrutinee),
-            arm_true = run_rewrite(func, interp.arm_true),
-            arm_false = run_rewrite(func, interp.arm_false)
+            arms = list(map(lambda arm: run_rewrite(func, arm), interp.arms)),
+            tags = interp.tags
         )
     else:
         return interp
@@ -80,10 +72,10 @@ def destroy_empty_apply(interp):
         return interp.func
 
 def destroy_strictness(interp, new_interps):
-    if isinstance(interp, CaseDefault):
+    if isinstance(interp, Case) and interp.tags == ['_DEFAULT']:
         case_argument = CaseArgument(inspection = interp.bound_ptr)
         new_interps.append((case_argument, interp.scrutinee))
-        return interp.arm
+        return interp.arms[0]
 
 #####################
 
