@@ -40,8 +40,8 @@ class Machine:
             if insn.mnemonic == 'add':
                 assert insn.operands[1].type == capstone.x86.X86_OP_IMM
                 self.store(insn.operands[0], ptrutil.pointer_offset(self.settings, self.load(insn.operands[0]), insn.operands[1].imm))
-                if insn.operands[0].type == capstone.x86.X86_OP_REG and base_register(insn.operands[0].reg) == self.settings['heap-register']:
-                    self.heap += [None] * (insn.operands[1].imm // self.settings['word-size'])
+                if insn.operands[0].type == capstone.x86.X86_OP_REG and base_register(insn.operands[0].reg) == self.settings.rt.heap_register:
+                    self.heap += [None] * (insn.operands[1].imm // self.settings.rt.word_size)
             elif insn.mnemonic == 'mov':
                 self.store(insn.operands[0], self.load(insn.operands[1]))
             elif insn.mnemonic == 'lea':

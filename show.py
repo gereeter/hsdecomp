@@ -4,8 +4,8 @@ def show_instruction(insn):
     return insn.mnemonic + "\t" + insn.op_str
 
 def get_name_for_address(settings, offset):
-    if offset in settings['address-to-name']:
-        return settings['address-to-name'][offset]
+    if offset in settings.address_to_name:
+        return settings.address_to_name[offset]
     else:
         return "loc_" + str(offset)
 
@@ -15,7 +15,7 @@ def show_pretty(settings, pointer):
             return "None"
         elif isinstance(pointer, StaticValue):
             name = get_name_for_address(settings, pointer.value)
-            if settings['opts'].abbreviate_library_names and name_is_library(name):
+            if settings.opts.abbreviate_library_names and name_is_library(name):
                 name = name.split('_')[2]
             return demangle(name)
         elif isinstance(pointer, HeapPointer):
@@ -35,9 +35,9 @@ def show_pretty_nonptr(settings, value, context):
     assert isinstance(value, StaticValue)
     if isinstance(context, StaticValue) and get_name_for_address(settings, context.value) == 'ghczmprim_GHCziCString_unpackCStringzh_closure':
         ret = '"'
-        parsed_offset = settings['rodata-offset'] + value.value
-        while settings['binary'][parsed_offset] != 0:
-            ret += chr(settings['binary'][parsed_offset])
+        parsed_offset = settings.rodata_offset + value.value
+        while settings.binary[parsed_offset] != 0:
+            ret += chr(settings.binary[parsed_offset])
             parsed_offset += 1
         ret += '"'
         return ret
