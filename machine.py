@@ -28,8 +28,9 @@ def base_register(reg):
         return reg
 
 class Machine:
-    def __init__(self, settings, stack, registers):
+    def __init__(self, settings, parsed, stack, registers):
         self.settings = settings
+        self.parsed = parsed
         self.stack = stack
         self.registers = registers
         self.heap = []
@@ -61,7 +62,7 @@ class Machine:
                 return UnknownValue()
         elif operand.type == capstone.x86.X86_OP_MEM:
             pointer = self.read_memory_operand(operand.mem)
-            return ptrutil.dereference(self.settings, pointer, self.stack)
+            return ptrutil.dereference(self.settings, self.parsed, pointer, self.stack)
         elif operand.type == capstone.x86.X86_OP_IMM:
             return StaticValue(value = operand.imm)
         else:

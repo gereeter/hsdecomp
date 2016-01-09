@@ -3,27 +3,27 @@ from hstypes import *
 def show_instruction(insn):
     return insn.mnemonic + "\t" + insn.op_str
 
-def get_name_for_address(parsed, offset):
-    if offset in parsed['address-to-name']:
-        return parsed['address-to-name'][offset]
+def get_name_for_address(settings, offset):
+    if offset in settings['address-to-name']:
+        return settings['address-to-name'][offset]
     else:
         return "loc_" + str(offset)
 
-def show_pretty(parsed, pointer):
+def show_pretty(settings, pointer):
     try:
         if pointer == None:
             return "None"
         elif isinstance(pointer, StaticValue):
-            name = get_name_for_address(parsed, pointer.value)
-            if parsed['opts'].abbreviate_library_names and name_is_library(name):
+            name = get_name_for_address(settings, pointer.value)
+            if settings['opts'].abbreviate_library_names and name_is_library(name):
                 name = name.split('_')[2]
             return demangle(name)
         elif isinstance(pointer, HeapPointer):
-            return "<index " + str(pointer.index) + " in " + show_pretty(parsed, pointer.heap_segment) + "'s heap, tag " + str(pointer.tag) + ">"
+            return "<index " + str(pointer.index) + " in " + show_pretty(settings, pointer.heap_segment) + "'s heap, tag " + str(pointer.tag) + ">"
         elif isinstance(pointer, Argument):
             return demangle(pointer.func) + "_arg_" + str(pointer.index)
         elif isinstance(pointer, CaseArgument):
-            return show_pretty(parsed, pointer.inspection) + "_case_input"
+            return show_pretty(settings, pointer.inspection) + "_case_input"
         elif isinstance(pointer, UnknownValue):
             return "!unknown!"
         else:
@@ -31,31 +31,31 @@ def show_pretty(parsed, pointer):
     except:
         return ("<<Error in show_pretty, pointer = " + str(pointer) + ">>")
 
-def show_pretty_nonptr(parsed, value, context):
+def show_pretty_nonptr(settings, value, context):
     assert isinstance(value, StaticValue)
-    if isinstance(context, StaticValue) and get_name_for_address(parsed, context.value) == 'ghczmprim_GHCziCString_unpackCStringzh_closure':
+    if isinstance(context, StaticValue) and get_name_for_address(settings, context.value) == 'ghczmprim_GHCziCString_unpackCStringzh_closure':
         ret = '"'
-        parsed_offset = parsed['rodata-offset'] + value.value
-        while parsed['binary'][parsed_offset] != 0:
-            ret += chr(parsed['binary'][parsed_offset])
+        parsed_offset = settings['rodata-offset'] + value.value
+        while settings['binary'][parsed_offset] != 0:
+            ret += chr(settings['binary'][parsed_offset])
             parsed_offset += 1
         ret += '"'
         return ret
     else:
         return str(value.value)
 
-def show_pretty_interpretation(parsed, interp):
-    return '\n'.join(render_pretty_interpretation(parsed, interp, False))
+def show_pretty_interpretation(settings, interp):
+    return '\n'.join(render_pretty_interpretation(settings, interp, False))
 
-def render_pretty_interpretation(parsed, interp, wants_parens):
+def render_pretty_interpretation(settings, interp, wants_parens):
     if isinstance(interp, Apply):
-        func = render_pretty_interpretation(parsed, interp.func, False)
+        func = render_pretty_interpretation(settings, interp.func, False)
         args = []
         for arg, pat in zip(interp.args, interp.pattern):
             if pat == 'p':
-                args.append(render_pretty_interpretation(parsed, arg, True))
+                args.append(render_pretty_interpretation(settings, arg, True))
             elif pat == 'n':
-                args.append([show_pretty_nonptr(parsed, arg.pointer, interp.func)])
+                args.append([show_pretty_nonptr(settings, arg.pointer, interp.func)])
             else:
                 assert False, "bad argument pattern"
 
@@ -66,7 +66,7 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
         else:
             ret = [func[0] + ''.join(map(lambda arg: " " + arg[0], args))]
     elif isinstance(interp, CaseDefault):
-        scrutinee = render_pretty_interpretation(parsed, interp.scrutinee, False)
+        scrutinee = render_pretty_interpretation(settings, interp.scrutinee, False)
         if len(scrutinee) > 1:
             ret = scrutinee
             ret += ["of"]
@@ -74,20 +74,20 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
         else:
             ret = ["case " + scrutinee[0] + " of"]
 
-        arm = render_pretty_interpretation(parsed, interp.arm, False)
-        arm[0] = show_pretty(parsed, CaseArgument(inspection = interp.bound_ptr)) + "@_DEFAULT -> " + arm[0]
+        arm = render_pretty_interpretation(settings, interp.arm, False)
+        arm[0] = show_pretty(settings, CaseArgument(inspection = interp.bound_ptr)) + "@_DEFAULT -> " + arm[0]
 
         ret += map(lambda line: "    " + line, arm)
     elif isinstance(interp, CaseBool):
-        scrutinee = render_pretty_interpretation(parsed, interp.scrutinee, False)
+        scrutinee = render_pretty_interpretation(settings, interp.scrutinee, False)
         if len(scrutinee) > 1:
             ret = scrutinee
             ret += ["of"]
             ret[0] = "case " + ret[0]
         else:
             ret = ["case " + scrutinee[0] + " of"]
-        arm_true = render_pretty_interpretation(parsed, interp.arm_true, False)
-        arm_false = render_pretty_interpretation(parsed, interp.arm_false, False)
+        arm_true = render_pretty_interpretation(settings, interp.arm_true, False)
+        arm_false = render_pretty_interpretation(settings, interp.arm_false, False)
 
         arm_true[0] = "True -> " + arm_true[0]
         arm_true[-1] = arm_true[-1] + ","
@@ -96,7 +96,7 @@ def render_pretty_interpretation(parsed, interp, wants_parens):
         ret += map(lambda line: "    " + line, arm_true)
         ret += map(lambda line: "    " + line, arm_false)
     elif isinstance(interp, Pointer):
-        return [show_pretty(parsed, interp.pointer)]
+        return [show_pretty(settings, interp.pointer)]
     else:
         assert False, "Bad interpretation type in show_pretty_interpretation"
 
