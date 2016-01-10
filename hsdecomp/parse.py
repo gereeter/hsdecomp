@@ -4,7 +4,7 @@ import copy
 import capstone
 
 from hsdecomp import ptrutil, machine, show
-from hsdecomp.hstypes import *
+from hsdecomp.types import *
 
 def disasm_from_raw(settings, address, num_insns):
     return settings.capstone.disasm(settings.binary[settings.text_offset + address:], address, num_insns)

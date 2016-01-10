@@ -1,4 +1,4 @@
-from hsdecomp.hstypes import *
+from hsdecomp.types import *
 
 def foreach_use(interp, func):
     if isinstance(interp, Apply):

@@ -3,7 +3,7 @@ import capstone
 from elftools.elf.elffile import ELFFile
 
 from hsdecomp import optimize, parse, show, ty
-from hsdecomp.hstypes import *
+from hsdecomp.types import *
 
 def main():
     arg_parser = argparse.ArgumentParser(description='Decompile a GHC-compiled Haskell program.')

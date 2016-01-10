@@ -1,5 +1,5 @@
 from hsdecomp import show, optimize
-from hsdecomp.hstypes import *
+from hsdecomp.types import *
 
 bool_type = EnumType(constructor_names = {1: 'False', 2: 'True'}, complete = True)
 

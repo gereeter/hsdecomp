@@ -1,6 +1,6 @@
 import struct
 
-from hsdecomp.hstypes import *
+from hsdecomp.types import *
 
 def read_half_word(settings, file_offset):
     return struct.unpack(settings.rt.halfword.struct, settings.binary[file_offset:file_offset+settings.rt.halfword.size])[0]
