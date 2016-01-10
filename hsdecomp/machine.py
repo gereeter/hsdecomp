@@ -1,7 +1,7 @@
 import capstone
 
-import ptrutil
-from hstypes import *
+from hsdecomp import ptrutil
+from hsdecomp.hstypes import *
 
 def base_register(reg):
     base_reg_table = {

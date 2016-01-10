@@ -2,13 +2,10 @@ import argparse
 import capstone
 from elftools.elf.elffile import ELFFile
 
-import optimize
-import parse
-import show
-import ty
-from hstypes import *
+from hsdecomp import optimize, parse, show, ty
+from hsdecomp.hstypes import *
 
-if __name__ == '__main__':
+def main():
     arg_parser = argparse.ArgumentParser(description='Decompile a GHC-compiled Haskell program.')
     arg_parser.add_argument('file')
     arg_parser.add_argument('entry', default='Main_main_closure', nargs='?')

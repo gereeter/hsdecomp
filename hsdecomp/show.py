@@ -1,4 +1,4 @@
-from hstypes import *
+from hsdecomp.hstypes import *
 
 def show_instruction(insn):
     return insn.mnemonic + "\t" + insn.op_str
