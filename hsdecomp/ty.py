@@ -1,7 +1,7 @@
 from hsdecomp import show, optimize
 from hsdecomp.hstypes import *
 
-bool_type = EnumType(constructor_names = ['False', 'True'])
+bool_type = EnumType(constructor_names = {1: 'False', 2: 'True'}, complete = True)
 
 known_types = {
     'ghczmprim_GHCziClasses_zeze_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
@@ -52,12 +52,13 @@ def rename_tags(settings, parsed, interp):
             for i in range(len(interp.tags)):
                 if isinstance(interp.tags[i], NumericTag):
                     seen_tags[interp.tags[i].value] = None
-                    interp.tags[i] = NamedTag(name = scrut_ty.constructor_names[interp.tags[i].value - 1])
-            if len(interp.tags) == len(scrut_ty.constructor_names):
+                    interp.tags[i] = NamedTag(name = scrut_ty.constructor_names[interp.tags[i].value])
+            if scrut_ty.complete and len(interp.tags) == len(scrut_ty.constructor_names):
                 assert len(seen_tags) == len(scrut_ty.constructor_names) - 1
                 for i in range(len(interp.tags)):
                     if not i+1 in seen_tags:
-                        missing_tag = i
+                        missing_tag = i+1
+                        break
                 for i in range(len(interp.tags)):
                     if isinstance(interp.tags[i], DefaultTag):
                         interp.tags[i] = NamedTag(name = scrut_ty.constructor_names[missing_tag])

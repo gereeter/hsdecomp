@@ -27,4 +27,4 @@ DefaultTag = collections.namedtuple('DefaultTag', '')
 # Types
 UnknownType = collections.namedtuple('UnknownType', '')
 FunctionType = collections.namedtuple('FunctionType', 'arg result')
-EnumType = collections.namedtuple('EnumType', 'constructor_names')
+EnumType = collections.namedtuple('EnumType', 'constructor_names complete')
