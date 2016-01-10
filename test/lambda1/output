@@ -1,0 +1,7 @@
+Main_main_closure = $ (. putStrLn sBm_info) (rlz_info (S# 120))
+
+rlz_info rlz_info_arg_0 = case == $fEqInteger rlz_info_arg_0 (S# 1) of
+    False -> + $fNumInteger (rlz_info (- $fNumInteger rlz_info_arg_0 (S# 1))) (rlz_info (- $fNumInteger rlz_info_arg_0 (S# 1))),
+    True -> S# 2
+
+sBm_info sBm_info_arg_0 = $ (zipWith (on (. (fmap $fFunctor(->) chr) (xor $fBitsInt)) ord) (unpackCString# "BPF_IF_PW^^VSNXAPCZL^XKM")) (show $fShowInteger sBm_info_arg_0)
