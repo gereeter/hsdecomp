@@ -1,0 +1,1 @@
+Main_main_closure = putStrLn (unpackCString# "Hello, World!")
