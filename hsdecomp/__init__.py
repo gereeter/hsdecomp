@@ -2,7 +2,7 @@ import argparse
 import capstone
 from elftools.elf.elffile import ELFFile
 
-from hsdecomp import optimize, parse, show, ty
+from hsdecomp import optimize, parse, show, infer
 from hsdecomp.types import *
 
 def main():
@@ -74,9 +74,9 @@ def main():
     parse.read_closure(settings, parsed, entry_pointer)
 
     for ptr in parsed['interpretations']:
-         ty.infer_type_for(settings, parsed, ptr)
+         infer.infer_type_for(settings, parsed, ptr)
 
-    ty.run_rename_tags(settings, parsed)
+    infer.run_rename_tags(settings, parsed)
 
     optimize.run_destroy_empty_apply(parsed)
     if opts.ignore_strictness:
