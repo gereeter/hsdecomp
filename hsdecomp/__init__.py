@@ -21,8 +21,8 @@ def main():
     if elffile.elfclass == 32:
         capstone_mode = capstone.CS_MODE_32
         runtime = Runtime(
-            halfword = WordDesc(size = 2, struct = '<H'),
-            word = WordDesc(size = 4, struct = '<I'),
+            halfword = WordDesc(size = 2, lg_size = 1, struct = '<H'),
+            word = WordDesc(size = 4, lg_size = 2, struct = '<I'),
             stack_register = capstone.x86.X86_REG_RBP,
             heap_register = capstone.x86.X86_REG_RDI,
             main_register = capstone.x86.X86_REG_RSI,
@@ -31,8 +31,8 @@ def main():
     elif elffile.elfclass == 64:
         capstone_mode = capstone.CS_MODE_64
         runtime = Runtime(
-            halfword = WordDesc(size = 4, struct = '<I'),
-            word = WordDesc(size = 8, struct = '<Q'),
+            halfword = WordDesc(size = 4, lg_size = 2, struct = '<I'),
+            word = WordDesc(size = 8, lg_size = 3, struct = '<Q'),
             stack_register = capstone.x86.X86_REG_RBP,
             heap_register = capstone.x86.X86_REG_R12,
             main_register = capstone.x86.X86_REG_RBX,
@@ -42,6 +42,7 @@ def main():
     settings = Settings(
         opts = opts,
         rt = runtime,
+        version = (7, 10, 3),
         name_to_address = {},
         address_to_name = {},
         binary = open(opts.file, "rb").read(),
@@ -62,6 +63,10 @@ def main():
             pass
 
     settings.capstone.detail = True
+
+    parsed_version = parse.read_version(settings)
+    if parsed_version != None:
+        settings = settings._replace(version = parsed_version)
 
     parsed = {}
     parsed['heaps'] = {}
