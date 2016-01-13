@@ -46,6 +46,12 @@ def retag(settings, pointer, tag):
     else:
         assert False,"bad pointer to retag"
 
+def read_arg_pattern(settings, address):
+    num_args = read_num_args(settings, address)
+    func_type = read_function_type(settings, address)
+    assert num_args >= len(func_type)
+    return func_type + 'v' * (num_args - len(func_type))
+
 def read_num_args(settings, address):
     return ptrutil.read_half_word(settings, settings.text_offset + address - settings.rt.halfword.size*5)
 
@@ -166,16 +172,16 @@ def read_closure(settings, parsed, pointer):
 
             return
         elif info_type[:8] == 'function':
-            num_args = read_num_args(settings, info_pointer.value)
+            arg_pattern = read_arg_pattern(settings, info_pointer.value)
         else:
-            num_args = 0
+            arg_pattern = ''
 
         if settings.opts.verbose:
             print()
 
         parsed['interpretations'][pointer] = Pointer(info_pointer)
 
-        read_function_thunk(settings, parsed, info_pointer, retag(settings, pointer, num_args), num_args)
+        read_function_thunk(settings, parsed, info_pointer, retag(settings, pointer, len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty(settings, pointer))
@@ -245,7 +251,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             print("        " + show.show_instruction(insn))
         print()
 
-def read_function_thunk(settings, parsed, pointer, main_register, num_args):
+def read_function_thunk(settings, parsed, pointer, main_register, arg_pattern):
     if settings.opts.verbose:
         print("Found function/thunk!")
 
@@ -254,7 +260,7 @@ def read_function_thunk(settings, parsed, pointer, main_register, num_args):
     info_name = show.get_name_for_address(settings, pointer.value)
     if settings.opts.verbose:
         print("    Name:", show.demangle(info_name))
-        print("    Arity:", num_args)
+        print("    Arg pattern:", arg_pattern)
 
     if show.name_is_library(info_name):
         if settings.opts.verbose:
@@ -265,14 +271,15 @@ def read_function_thunk(settings, parsed, pointer, main_register, num_args):
     extra_stack = []
     registers = {}
     registers[settings.rt.main_register] = main_register
-    for i in range(num_args):
-        if i < len(settings.rt.arg_registers):
-            registers[settings.rt.arg_registers[i]] = Argument(index = i, func = info_name)
-        else:
-            extra_stack.append(Argument(index = i, func = info_name))
+    for i in range(len(arg_pattern)):
+        if arg_pattern[i] != 'v':
+            if i < len(settings.rt.arg_registers):
+                registers[settings.rt.arg_registers[i]] = Argument(index = i, func = info_name)
+            else:
+                extra_stack.append(Argument(index = i, func = info_name))
 
-    if num_args > 0:
-        parsed['num-args'][pointer] = num_args
+    if arg_pattern != '':
+        parsed['arg-pattern'][pointer] = arg_pattern
 
     read_code(settings, parsed, pointer, extra_stack, registers)
 
@@ -328,23 +335,22 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 if jmp_address in settings.address_to_name and settings.address_to_name[jmp_address][:7] == 'stg_ap_':
                     func = settings.address_to_name[jmp_address]
                     if func.split('_')[2] == '0':
-                        num_args = 0
                         arg_pattern = ''
                     else:
-                        num_args = len(func.split('_')[2])
                         arg_pattern = func.split('_')[2]
                     called = registers[settings.rt.main_register]
                     worklist.append({'type': 'closure', 'pointer': called})
                     func_type = 'closure'
                 else:
-                    num_args = read_num_args(settings, jmp_address)
-                    arg_pattern = read_function_type(settings, jmp_address)
+                    arg_pattern = read_arg_pattern(settings, jmp_address)
                     called = StaticValue(value = jmp_address)
-                    worklist.append({'type': 'function/thunk', 'pointer': called, 'main-register': registers[settings.rt.main_register], 'num-args': num_args})
+                    worklist.append({'type': 'function/thunk', 'pointer': called, 'main-register': registers[settings.rt.main_register], 'arg-pattern': arg_pattern})
                     func_type = 'info'
 
+                num_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
+
                 if settings.opts.verbose:
-                    print("    Number of args:", num_args)
+                    print("    Number of non-void args:", num_args)
                     print("    Called:", show.show_pretty(settings, called))
                     print("    Arg pattern:", arg_pattern)
 
@@ -372,7 +378,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 if cont_name[:7] == 'stg_ap_':
                     assert cont_name[-5:] == '_info'
                     arg_pattern = cont_name.split('_')[2]
-                    num_extra_args = len(arg_pattern)
+                    num_extra_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
                     if settings.opts.verbose:
                         print("                    then apply the result to", list(map(lambda s: show.show_pretty(settings, s), stack[stack_index+1:][:num_extra_args])))
                     interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(Pointer, stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
@@ -398,7 +404,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 if work['type'] == 'closure':
                     read_closure(settings, parsed, work['pointer'])
                 elif work['type'] == 'function/thunk':
-                    read_function_thunk(settings, parsed, work['pointer'], work['main-register'], work['num-args'])
+                    read_function_thunk(settings, parsed, work['pointer'], work['main-register'], work['arg-pattern'])
                 elif work['type'] == 'case':
                     read_case(settings, parsed, work['pointer'], work['stack'], work['scrutinee'])
                 else:

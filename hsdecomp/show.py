@@ -47,6 +47,8 @@ def show_pretty_nonptr(settings, value, context):
 def show_pretty_type(settings, ty, wants_parens):
     if isinstance(ty, UnknownType):
         return "?"
+    elif isinstance(ty, StateType):
+        return "State#"
     elif isinstance(ty, FunctionType):
         ret = show_pretty_type(settings, ty.arg, True) + " -> " + show_pretty_type(settings, ty.result, False)
         if wants_parens:
@@ -72,12 +74,18 @@ def render_pretty_interpretation(settings, interp, wants_parens):
     if isinstance(interp, Apply):
         func = render_pretty_interpretation(settings, interp.func, False)
         args = []
-        for arg, pat in zip(interp.args, interp.pattern):
+        arg_idx = 0
+        for pat in interp.pattern:
             if pat == 'p':
-                args.append(render_pretty_interpretation(settings, arg, True))
+                args.append(render_pretty_interpretation(settings, interp.args[arg_idx], True))
+                arg_idx += 1
             elif pat == 'n':
-                args.append([show_pretty_nonptr(settings, arg.pointer, interp.func)])
+                args.append([show_pretty_nonptr(settings, interp.args[arg_idx].pointer, interp.func)])
+                arg_idx += 1
+            elif pat == 'v':
+                args.append(["state#"])
             else:
+                print(pat)
                 assert False, "bad argument pattern"
 
         if len(func) > 1 or any(map(lambda arg: len(arg) > 1, args)):

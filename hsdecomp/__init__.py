@@ -71,7 +71,7 @@ def main():
     parsed = {}
     parsed['heaps'] = {}
     parsed['interpretations'] = {}
-    parsed['num-args'] = {}
+    parsed['arg-pattern'] = {}
     parsed['types'] = {}
 
     entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
@@ -109,15 +109,18 @@ def main():
 
             pretty = show.show_pretty(settings, pointer)
             lhs = pretty
-            if pointer in parsed['num-args']:
-                for i in range(parsed['num-args'][pointer]):
+            if pointer in parsed['arg-pattern']:
+                for i, pat in enumerate(parsed['arg-pattern'][pointer]):
                     lhs += " "
-                    lhs += pretty
-                    lhs += "_arg_"
-                    lhs += str(i)
+                    if pat == 'v':
+                        lhs += "state#"
+                    else:
+                        lhs += pretty
+                        lhs += "_arg_"
+                        lhs += str(i)
 
             if settings.opts.show_types and pointer in parsed['types']:
                 print(pretty, "::", show.show_pretty_type(settings, parsed['types'][pointer], False))
             print(lhs, "=", show.show_pretty_interpretation(settings, parsed['interpretations'][pointer]))
 
-            optimize.foreach_use(parsed['interpretations'][pointer], lambda interp: (function_worklist if interp in parsed['num-args'] else worklist).append(interp))
+            optimize.foreach_use(parsed['interpretations'][pointer], lambda interp: (function_worklist if interp in parsed['arg-pattern'] else worklist).append(interp))

@@ -14,7 +14,7 @@ def foreach_use(interp, func):
         func(interp.pointer)
 
 def can_inline(parsed, pointer):
-    return pointer in parsed['interpretations'] and not pointer in parsed['num-args']
+    return pointer in parsed['interpretations'] and not pointer in parsed['arg-pattern']
 
 def is_cheap(parsed, pointer):
     interp = parsed['interpretations'][pointer]
@@ -68,7 +68,7 @@ def do_inlining(parsed, interp, predicate, inlined):
         return parsed['interpretations'][interp.pointer]
 
 def destroy_empty_apply(interp):
-    if isinstance(interp, Apply) and len(interp.args) == 0:
+    if isinstance(interp, Apply) and len(interp.pattern) == 0:
         return interp.func
 
 def destroy_strictness(interp, new_interps):
