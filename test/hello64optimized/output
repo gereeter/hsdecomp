@@ -2,4 +2,4 @@ Main_main_closure = Main_main_info
 
 Main_main_info Main_main_info_arg_0 = Main_main1_info
 
-Main_main1_info Main_main1_info_arg_0 = hPutStr2 stdout (unpackCString# 4767240) True
+Main_main1_info Main_main1_info_arg_0 = hPutStr2 stdout (unpackCString# "Hello, World!") True
