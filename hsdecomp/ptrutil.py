@@ -11,8 +11,8 @@ def read_word(settings, file_offset):
 def pointer_offset(settings, pointer, offset):
     if isinstance(pointer, Tagged):
         offset += pointer.tag
-        assert isinstance(pointer.base, Offset)
-        return Tagged(base = Offset(base = pointer.base.base, index = pointer.base.index + offset // settings.rt.word.size), tag = offset % settings.rt.word.size)
+        assert isinstance(pointer.untagged, Offset)
+        return Tagged(untagged = Offset(base = pointer.untagged.base, index = pointer.untagged.index + offset // settings.rt.word.size), tag = offset % settings.rt.word.size)
     elif isinstance(pointer, StaticValue):
         return StaticValue(value = pointer.value + offset)
     elif isinstance(pointer, UnknownValue):
@@ -33,17 +33,23 @@ def retag(settings, pointer, tag):
     else:
         assert False,"bad pointer to retag"
 
+def detag(settings, pointer):
+    if isinstance(pointer, Tagged):
+        return pointer.untagged
+    else:
+        return retag(settings, pointer, 0)
+
 def dereference(settings, parsed, pointer, stack):
     if isinstance(pointer, StaticValue):
         assert pointer.value % settings.rt.word.size == 0
         return StaticValue(value = read_word(settings, settings.data_offset + pointer.value))
     elif isinstance(pointer, Tagged):
         assert pointer.tag == 0
-        assert isinstance(pointer.base, Offset)
-        if isinstance(pointer.base.base, HeapPointer):
-            return parsed['heaps'][pointer.base.base.heap_segment][pointer.base.index]
-        elif isinstance(pointer.base.base, StackPointer):
-            return stack[pointer.base.index]
+        assert isinstance(pointer.untagged, Offset)
+        if isinstance(pointer.untagged.base, HeapPointer):
+            return parsed['heaps'][pointer.untagged.base.heap_segment][pointer.untagged.index]
+        elif isinstance(pointer.untagged.base, StackPointer):
+            return stack[pointer.untagged.index]
     elif isinstance(pointer, UnknownValue):
         return UnknownValue()
     else:

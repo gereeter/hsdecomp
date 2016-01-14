@@ -6,7 +6,7 @@ Runtime = collections.namedtuple('Runtime', 'halfword word stack_register heap_r
 WordDesc = collections.namedtuple('WordDesc', 'size lg_size struct')
 
 # Values
-Tagged = collections.namedtuple('Tagged', 'base tag')
+Tagged = collections.namedtuple('Tagged', 'untagged tag')
 Offset = collections.namedtuple('Offset', 'base index')
 
 HeapPointer = collections.namedtuple('HeapPointer', 'heap_segment')

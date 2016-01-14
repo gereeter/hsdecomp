@@ -73,11 +73,11 @@ class Machine:
             output = self.read_memory_operand(operand.mem)
             if isinstance(output, Tagged):
                 assert output.tag == 0
-                assert isinstance(output.base, Offset)
-                if isinstance(output.base.base, HeapPointer):
-                    self.heap[output.base.index] = value
-                elif isinstance(output.base.base, StackPointer):
-                    adjusted_index = output.base.index + len(self.stack)
+                assert isinstance(output.untagged, Offset)
+                if isinstance(output.untagged.base, HeapPointer):
+                    self.heap[output.untagged.index] = value
+                elif isinstance(output.untagged.base, StackPointer):
+                    adjusted_index = output.untagged.index + len(self.stack)
                     if adjusted_index < 0:
                         self.stack = [None] * (-adjusted_index) + self.stack
                         self.stack[0] = value
