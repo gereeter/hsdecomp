@@ -176,7 +176,7 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
     first_instructions = disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
     mach.simulate(first_instructions)
 
-    if first_instructions[-2].mnemonic == 'cmp' and isinstance(mach.load(first_instructions[-2].operands[0]), CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
+    if first_instructions[-2].mnemonic == 'cmp' and isinstance(mach.load(first_instructions[-2].operands[0]), Tagged) and isinstance(mach.load(first_instructions[-2].operands[0]).untagged, CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
         assert first_instructions[-1].mnemonic == 'jae'
         small_address = sum(map(lambda insn: insn.size, first_instructions)) + address
         large_address = first_instructions[-1].operands[0].imm
@@ -209,7 +209,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             print("    Name:", show.demangle(info_name))
 
         arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
-            settings.rt.main_register: CaseArgument(inspection = pointer),
+            settings.rt.main_register: Tagged(CaseArgument(inspection = pointer), tag = 0),
             settings.rt.stack_register: Tagged(untagged = Offset(base = StackPointer(), index = -len(stack)), tag = 0)
         })
 
@@ -309,9 +309,11 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 if settings.opts.verbose:
                     print("    Interpretation: evaluate", show.show_pretty(settings, registers[settings.rt.main_register]))
 
+                evaled = ptrutil.detag(settings, registers[settings.rt.main_register])
+
                 stack_index = 0
-                interpretation = Pointer(registers[settings.rt.main_register])
-                worklist.append({'type': 'closure', 'pointer': registers[settings.rt.main_register]})
+                interpretation = Pointer(evaled)
+                worklist.append({'type': 'closure', 'pointer': evaled})
             elif instructions[-1].operands[0].type == capstone.x86.X86_OP_IMM:
                 jmp_address = instructions[-1].operands[0].imm
                 if jmp_address in settings.address_to_name and settings.address_to_name[jmp_address][:7] == 'stg_ap_':
