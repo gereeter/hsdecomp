@@ -21,6 +21,16 @@ def pointer_offset(settings, pointer, offset):
     else:
         assert False,"bad pointer to offset"
 
+def retag(settings, pointer, tag):
+    if isinstance(pointer, HeapPointer):
+        return pointer._replace(tag = tag)
+    elif isinstance(pointer, StaticValue):
+        tagmask = settings.rt.word.size - 1
+        cleared = pointer.value & ~tagmask
+        return StaticValue(value = cleared | tag)
+    else:
+        assert False,"bad pointer to retag"
+
 def dereference(settings, parsed, pointer, stack):
     if isinstance(pointer, StaticValue):
         assert pointer.value % settings.rt.word.size == 0

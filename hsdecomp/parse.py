@@ -24,16 +24,6 @@ def disasm_from_until(settings, address, predicate):
                 break
     return instructions
 
-def retag(settings, pointer, tag):
-    if isinstance(pointer, HeapPointer):
-        return pointer._replace(tag = tag)
-    elif isinstance(pointer, StaticValue):
-        tagmask = settings.rt.word.size - 1
-        cleared = pointer.value & ~tagmask
-        return StaticValue(value = cleared | tag)
-    else:
-        assert False,"bad pointer to retag"
-
 def read_arg_pattern(settings, address):
     num_args = read_num_args(settings, address)
     func_type = read_function_type(settings, address)
@@ -135,7 +125,7 @@ def read_closure(settings, parsed, pointer):
                 print()
             return
 
-        untagged_pointer = retag(settings, pointer, 0)
+        untagged_pointer = ptrutil.retag(settings, pointer, 0)
 
         info_pointer = ptrutil.dereference(settings, parsed, untagged_pointer, [])
         assert isinstance(info_pointer, StaticValue)
@@ -169,7 +159,7 @@ def read_closure(settings, parsed, pointer):
 
         parsed['interpretations'][pointer] = Pointer(info_pointer)
 
-        read_function_thunk(settings, parsed, info_pointer, retag(settings, pointer, len(arg_pattern)), arg_pattern)
+        read_function_thunk(settings, parsed, info_pointer, ptrutil.retag(settings, pointer, len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty(settings, pointer))
