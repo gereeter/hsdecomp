@@ -214,7 +214,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern:", tag)
-            read_code(settings, parsed, StaticValue(value = arm), stack, regs)
+            read_code(settings, parsed, arm, stack, regs)
 
         parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = list(map(lambda ptr: parsed['interpretations'][StaticValue(value = ptr)], arms)), tags = tags)
     except:
@@ -257,21 +257,19 @@ def read_function_thunk(settings, parsed, pointer, main_register, arg_pattern):
     if arg_pattern != '':
         parsed['arg-pattern'][pointer] = arg_pattern
 
-    read_code(settings, parsed, pointer, extra_stack, registers)
+    read_code(settings, parsed, pointer.value, extra_stack, registers)
 
-def read_code(settings, parsed, pointer, extra_stack, registers):
+def read_code(settings, parsed, address, extra_stack, registers):
     try:
-        assert isinstance(pointer, StaticValue)
-
-        if pointer in parsed['interpretations']:
+        if StaticValue(value = address) in parsed['interpretations']:
             if settings.opts.verbose:
                 print("    Seen before!")
                 print()
             return
 
-        instructions = disasm_from(settings, pointer.value)
+        instructions = disasm_from(settings, address)
 
-        registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(heap_segment = pointer), index = -1))
+        registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(heap_segment = StaticValue(value = address)), index = -1))
         registers[settings.rt.stack_register] = ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(extra_stack)))
         mach = machine.Machine(settings, parsed, extra_stack, registers)
         mach.simulate(instructions)
@@ -279,7 +277,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
         registers = mach.registers
         stack = mach.stack[registers[settings.rt.stack_register].untagged.index+len(mach.stack):]
 
-        parsed['heaps'][pointer] = mach.heap
+        parsed['heaps'][StaticValue(value = address)] = mach.heap
         if settings.opts.verbose:
             print("    Heap:", list(map(lambda h: show.show_pretty(settings, h), mach.heap)))
             print("    Stack:", list(map(lambda s: show.show_pretty(settings, s), stack)))
@@ -291,7 +289,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
 
             returned = registers[settings.rt.main_register].untagged
 
-            parsed['interpretations'][pointer] = Pointer(returned)
+            parsed['interpretations'][StaticValue(value = address)] = Pointer(returned)
             read_closure(settings, parsed, returned)
         else:
             worklist = []
@@ -377,7 +375,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
             if settings.opts.verbose:
                 print()
 
-            parsed['interpretations'][pointer] = interpretation
+            parsed['interpretations'][StaticValue(value = address)] = interpretation
 
             for work in worklist:
                 if work['type'] == 'closure':
@@ -394,6 +392,6 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    Disassembly:")
-        for insn in disasm_from(settings, pointer.value):
+        for insn in disasm_from(settings, address):
             print("        " + show.show_instruction(insn))
         print()
