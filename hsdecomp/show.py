@@ -19,8 +19,11 @@ def show_pretty(settings, pointer):
                 name = name.split('_')[2]
             return demangle(name)
         elif isinstance(pointer, Offset):
-            assert isinstance(pointer.base, HeapPointer)
-            return "<index " + str(pointer.index) + " in " + show_pretty(settings, pointer.base.heap_segment) + "'s heap, tag " + str(pointer.tag) + ">"
+            if isinstance(pointer.base, HeapPointer):
+                location = show_pretty(settings, pointer.base.heap_segment) + "'s heap"
+            elif isinstance(pointer.base, StackPointer):
+                location = "the stack"
+            return "<index " + str(pointer.index) + " in " + location + ", tag " + str(pointer.tag) + ">"
         elif isinstance(pointer, Argument):
             return demangle(pointer.func) + "_arg_" + str(pointer.index)
         elif isinstance(pointer, CaseArgument):
