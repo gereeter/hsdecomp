@@ -349,10 +349,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
                 args = []
                 stack_index = num_args
                 for reg, i in zip(settings.rt.arg_registers, range(num_args)):
-                    if reg in registers:
-                        args.append(registers[reg])
-                    else:
-                        args.append(UnknownValue())
+                    args.append(registers[reg])
                     stack_index -= 1
                 args += stack[:stack_index]
 
