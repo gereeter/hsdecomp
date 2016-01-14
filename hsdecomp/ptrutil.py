@@ -13,8 +13,6 @@ def pointer_offset(settings, pointer, offset):
         offset += pointer.tag
         assert isinstance(pointer.untagged, Offset)
         return Tagged(untagged = Offset(base = pointer.untagged.base, index = pointer.untagged.index + offset // settings.rt.word.size), tag = offset % settings.rt.word.size)
-    elif isinstance(pointer, StaticValue):
-        return StaticValue(value = pointer.value + offset)
     elif isinstance(pointer, UnknownValue):
         return UnknownValue()
     else:
