@@ -14,8 +14,6 @@ def pointer_offset(settings, pointer, offset):
         return Offset(base = pointer.base, index = pointer.index + offset // settings.rt.word.size, tag = offset % settings.rt.word.size)
     elif isinstance(pointer, StaticValue):
         return StaticValue(value = pointer.value + offset)
-    elif isinstance(pointer, StackPointer):
-        return StackPointer(index = pointer.index + offset // settings.rt.word.size)
     elif isinstance(pointer, UnknownValue):
         return UnknownValue()
     else:
@@ -40,10 +38,10 @@ def dereference(settings, parsed, pointer, stack):
         return StaticValue(value = read_word(settings, settings.data_offset + pointer.value))
     elif isinstance(pointer, Offset):
         assert pointer.tag == 0
-        assert isinstance(pointer.base, HeapPointer)
-        return parsed['heaps'][pointer.base.heap_segment][pointer.index]
-    elif isinstance(pointer, StackPointer):
-        return stack[pointer.index]
+        if isinstance(pointer.base, HeapPointer):
+            return parsed['heaps'][pointer.base.heap_segment][pointer.index]
+        elif isinstance(pointer.base, StackPointer):
+            return stack[pointer.index]
     elif isinstance(pointer, UnknownValue):
         return UnknownValue()
     else:

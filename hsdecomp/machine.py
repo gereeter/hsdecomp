@@ -73,14 +73,14 @@ class Machine:
             output = self.read_memory_operand(operand.mem)
             if isinstance(output, Offset):
                 assert output.tag == 0
-                assert isinstance(output.base, HeapPointer)
-                self.heap[output.index] = value
-            elif isinstance(output, StackPointer):
-                adjusted_index = output.index + len(self.stack)
-                if adjusted_index < 0:
-                    self.stack = [None] * (-adjusted_index) + self.stack
-                    self.stack[0] = value
-                else:
-                    self.stack[adjusted_index] = value
+                if isinstance(output.base, HeapPointer):
+                    self.heap[output.index] = value
+                elif isinstance(output.base, StackPointer):
+                    adjusted_index = output.index + len(self.stack)
+                    if adjusted_index < 0:
+                        self.stack = [None] * (-adjusted_index) + self.stack
+                        self.stack[0] = value
+                    else:
+                        self.stack[adjusted_index] = value
         elif operand.type == capstone.x86.X86_OP_REG:
             self.registers[base_register(operand.reg)] = value

@@ -9,7 +9,7 @@ WordDesc = collections.namedtuple('WordDesc', 'size lg_size struct')
 Offset = collections.namedtuple('Offset', 'base index tag')
 
 HeapPointer = collections.namedtuple('HeapPointer', 'heap_segment')
-StackPointer = collections.namedtuple('StackPointer', 'index')
+StackPointer = collections.namedtuple('StackPointer', '')
 StaticValue = collections.namedtuple('StaticValue', 'value')
 UnknownValue = collections.namedtuple('UnknownValue', '')
 

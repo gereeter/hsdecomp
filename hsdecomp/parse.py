@@ -205,7 +205,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
 
         arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
             settings.rt.main_register: CaseArgument(inspection = pointer),
-            settings.rt.stack_register: StackPointer(index = -len(stack))
+            settings.rt.stack_register: Offset(base = StackPointer(), index = -len(stack), tag = 0)
         })
 
         for arm, tag, stack, regs in zip(arms, tags, stacks, registers):
@@ -271,8 +271,8 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
 
         instructions = disasm_from(settings, pointer.value)
 
-        registers[settings.rt.heap_register] = Offset(HeapPointer(heap_segment = pointer), index = -1, tag = 0)
-        registers[settings.rt.stack_register] = StackPointer(index = -len(extra_stack))
+        registers[settings.rt.heap_register] = Offset(base = HeapPointer(heap_segment = pointer), index = -1, tag = 0)
+        registers[settings.rt.stack_register] = Offset(base = StackPointer(), index = -len(extra_stack), tag = 0)
         mach = machine.Machine(settings, parsed, extra_stack, registers)
         mach.simulate(instructions)
 
