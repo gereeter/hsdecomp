@@ -20,12 +20,6 @@ def pointer_offset(settings, pointer, offset):
     else:
         assert False,"bad pointer to offset"
 
-def detag(settings, pointer):
-    if isinstance(pointer, Tagged):
-        return pointer.untagged
-    else:
-        return retag(settings, pointer, 0)
-
 def dereference(settings, parsed, pointer, stack):
     if isinstance(pointer, Offset):
         if isinstance(pointer.base, HeapPointer):

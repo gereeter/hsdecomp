@@ -289,7 +289,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 print("    Interpretation: return", show.show_pretty(settings, registers[settings.rt.main_register]))
                 print()
 
-            returned = ptrutil.detag(settings, registers[settings.rt.main_register])
+            returned = registers[settings.rt.main_register].untagged
 
             parsed['interpretations'][pointer] = Pointer(returned)
             read_closure(settings, parsed, returned)
@@ -304,7 +304,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 if settings.opts.verbose:
                     print("    Interpretation: evaluate", show.show_pretty(settings, registers[settings.rt.main_register]))
 
-                evaled = ptrutil.detag(settings, registers[settings.rt.main_register])
+                evaled = registers[settings.rt.main_register].untagged
 
                 stack_index = 0
                 interpretation = Pointer(evaled)
@@ -317,7 +317,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                         arg_pattern = ''
                     else:
                         arg_pattern = func.split('_')[2]
-                    called = ptrutil.detag(settings, registers[settings.rt.main_register])
+                    called = registers[settings.rt.main_register].untagged
                     worklist.append({'type': 'closure', 'pointer': called})
                     func_type = 'closure'
                 else:
@@ -337,11 +337,11 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 stack_index = num_args
                 for reg, i in zip(settings.rt.arg_registers, range(num_args)):
                     if reg in registers:
-                        args.append(ptrutil.detag(settings, registers[reg]))
+                        args.append(registers[reg].untagged)
                     else:
                         args.append(UnknownValue())
                     stack_index -= 1
-                args += map(lambda ptr: ptrutil.detag(settings, ptr), stack[:stack_index])
+                args += map(lambda ptr: ptr.untagged, stack[:stack_index])
 
                 if settings.opts.verbose:
                     print("    Interpretation: call", show.show_pretty(settings, called), "on", list(map(lambda s: show.show_pretty(settings, s), args)))
@@ -360,9 +360,9 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                     num_extra_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
                     if settings.opts.verbose:
                         print("                    then apply the result to", list(map(lambda s: show.show_pretty(settings, s), stack[stack_index+1:][:num_extra_args])))
-                    interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(lambda ptr: Pointer(ptrutil.detag(settings, ptr)), stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
+                    interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(lambda ptr: Pointer(ptr.untagged), stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
                     for arg in stack[stack_index+1:][:num_extra_args]:
-                        worklist.append({'type': 'closure', 'pointer': ptrutil.detag(settings, arg)})
+                        worklist.append({'type': 'closure', 'pointer': arg.untagged})
                     stack_index += 1 + num_extra_args
                 elif cont_name == 'stg_upd_frame_info' or cont_name == 'stg_bh_upd_frame_info':
                     if settings.opts.verbose:
