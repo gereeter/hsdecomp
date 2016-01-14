@@ -17,12 +17,15 @@ def show_pretty_value(settings, value):
     elif isinstance(value, UnknownValue):
         return "!unknown!"
 
-def show_pretty_pointer(settings, pointer):
-    if isinstance(pointer, StaticValue):
-        name = get_name_for_address(settings, pointer.value)
+def show_pretty_address(settings, address):
+        name = get_name_for_address(settings, address)
         if settings.opts.abbreviate_library_names and name_is_library(name):
             name = name.split('_')[2]
         return demangle(name)
+
+def show_pretty_pointer(settings, pointer):
+    if isinstance(pointer, StaticValue):
+        return show_pretty_address(settings, pointer.value)
     elif isinstance(pointer, Offset):
         if isinstance(pointer.base, HeapPointer):
             location = show_pretty_pointer(settings, pointer.base.heap_segment) + "'s heap"

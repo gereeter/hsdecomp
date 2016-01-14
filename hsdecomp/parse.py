@@ -387,7 +387,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     assert False,"bad work in worklist"
     except:
         e_type, e_obj, e_tb = sys.exc_info()
-        print("Error in processing code at", show.show_pretty_pointer(settings, StaticValue(value = address)))
+        print("Error in processing code at", show.show_pretty_address(settings, address))
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    Disassembly:")
