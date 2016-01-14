@@ -115,11 +115,6 @@ def read_closure(settings, parsed, pointer):
         if isinstance(pointer, Argument) or isinstance(pointer, CaseArgument):
             return
 
-        untagged_pointer = pointer
-
-        if isinstance(pointer, Offset):
-            pointer = Tagged(untagged = pointer, tag = 0)
-
         if settings.opts.verbose:
             print("Found closure:")
             print("    Pointer:", show.show_pretty(settings, pointer))
@@ -130,39 +125,39 @@ def read_closure(settings, parsed, pointer):
                 print()
             return
 
-        info_pointer = ptrutil.dereference(settings, parsed, pointer, [])
-        assert isinstance(info_pointer, StaticValue)
+        info_pointer = ptrutil.dereference(settings, parsed, Tagged(untagged = pointer, tag = 0), [])
+        assert isinstance(info_pointer.untagged, StaticValue)
 
-        info_type = read_closure_type(settings, info_pointer.value)
+        info_type = read_closure_type(settings, info_pointer.untagged.value)
         if info_type[:11] == 'constructor':
-            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*4)
-            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*3)
+            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.untagged.value - settings.rt.halfword.size*4)
+            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.untagged.value - settings.rt.halfword.size*3)
 
             args = []
-            arg_pointer = pointer
+            arg_pointer = Tagged(untagged = pointer, tag = 0)
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
                 args.append(ptrutil.dereference(settings, parsed, arg_pointer, []))
 
-            parsed['interpretations'][untagged_pointer] = Apply(func = Pointer(info_pointer), func_type = 'constructor', args = list(map(Pointer, args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
+            parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer.untagged), func_type = 'constructor', args = list(map(lambda arg: Pointer(arg.untagged), args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
             if settings.opts.verbose:
                 print()
 
             for arg in args[:num_ptrs]:
-                read_closure(settings, parsed, arg)
+                read_closure(settings, parsed, arg.untagged)
 
             return
         elif info_type[:8] == 'function':
-            arg_pattern = read_arg_pattern(settings, info_pointer.value)
+            arg_pattern = read_arg_pattern(settings, info_pointer.untagged.value)
         else:
             arg_pattern = ''
 
         if settings.opts.verbose:
             print()
 
-        parsed['interpretations'][untagged_pointer] = Pointer(info_pointer)
+        parsed['interpretations'][pointer] = Pointer(info_pointer.untagged)
 
-        read_function_thunk(settings, parsed, info_pointer, ptrutil.retag(settings, pointer, len(arg_pattern)), arg_pattern)
+        read_function_thunk(settings, parsed, info_pointer.untagged, Tagged(untagged = pointer, tag = len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty(settings, pointer))
@@ -189,7 +184,7 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
         stacks = stacks_small + stacks_large
         registers = regs_small + regs_large
     else:
-        arms = [StaticValue(value = address)]
+        arms = [address]
         if min_tag == max_tag:
             tags = [NumericTag(value = min_tag)]
         else:
@@ -219,9 +214,9 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern:", tag)
-            read_code(settings, parsed, arm, stack, regs)
+            read_code(settings, parsed, StaticValue(value = arm), stack, regs)
 
-        parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = list(map(lambda ptr: parsed['interpretations'][ptr], arms)), tags = tags)
+        parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = list(map(lambda ptr: parsed['interpretations'][StaticValue(value = ptr)], arms)), tags = tags)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing case at", show.show_pretty(settings, pointer))
@@ -357,8 +352,8 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                         worklist.append({'type': 'closure', 'pointer': arg})
 
             while stack_index < len(stack):
-                assert isinstance(stack[stack_index], StaticValue)
-                cont_name = show.get_name_for_address(settings, stack[stack_index].value)
+                assert isinstance(stack[stack_index].untagged, StaticValue)
+                cont_name = show.get_name_for_address(settings, stack[stack_index].untagged.value)
                 if cont_name[:7] == 'stg_ap_':
                     assert cont_name[-5:] == '_info'
                     arg_pattern = cont_name.split('_')[2]
@@ -376,8 +371,8 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 else:
                     if settings.opts.verbose:
                         print("                    then inspect using", show.show_pretty(settings, stack[stack_index]))
-                    worklist.append({'type': 'case', 'pointer': stack[stack_index], 'stack': stack[stack_index:], 'scrutinee': interpretation})
-                    interpretation = Pointer(stack[stack_index])
+                    worklist.append({'type': 'case', 'pointer': stack[stack_index].untagged, 'stack': stack[stack_index:], 'scrutinee': interpretation})
+                    interpretation = Pointer(stack[stack_index].untagged)
                     stack_index = len(stack)
             if settings.opts.verbose:
                 print()

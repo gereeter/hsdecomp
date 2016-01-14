@@ -64,7 +64,7 @@ class Machine:
             pointer = self.read_memory_operand(operand.mem)
             return ptrutil.dereference(self.settings, self.parsed, pointer, self.stack)
         elif operand.type == capstone.x86.X86_OP_IMM:
-            return StaticValue(value = operand.imm)
+            return Tagged(untagged = StaticValue(value = operand.imm), tag = 0)
         else:
             assert False, "unknown type of operand in Machine.load"
 
