@@ -28,7 +28,7 @@ def show_pretty_pointer(settings, pointer):
         return show_pretty_address(settings, pointer.value)
     elif isinstance(pointer, Offset):
         if isinstance(pointer.base, HeapPointer):
-            location = show_pretty_pointer(settings, pointer.base.heap_segment) + "'s heap"
+            location = show_pretty_address(settings, pointer.base.heap_segment) + "'s heap"
         elif isinstance(pointer.base, StackPointer):
             location = "the stack"
         return "<index " + str(pointer.index) + " in " + location + ">"

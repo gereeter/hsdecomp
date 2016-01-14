@@ -268,7 +268,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
 
         instructions = disasm_from(settings, address)
 
-        registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(heap_segment = StaticValue(value = address)), index = -1))
+        registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(heap_segment = address), index = -1))
         registers[settings.rt.stack_register] = ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(extra_stack)))
         mach = machine.Machine(settings, parsed, extra_stack, registers)
         mach.simulate(instructions)
@@ -276,7 +276,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
         registers = mach.registers
         stack = mach.stack[registers[settings.rt.stack_register].untagged.index+len(mach.stack):]
 
-        parsed['heaps'][StaticValue(value = address)] = mach.heap
+        parsed['heaps'][address] = mach.heap
         if settings.opts.verbose:
             print("    Heap:", list(map(lambda h: show.show_pretty_value(settings, h), mach.heap)))
             print("    Stack:", list(map(lambda s: show.show_pretty_value(settings, s), stack)))
