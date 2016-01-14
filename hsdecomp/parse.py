@@ -110,6 +110,18 @@ def read_closure_type(settings, address):
     else:
         return 'unknown: ' + str(type)
 
+def interp_args(args, arg_pattern):
+    ret = []
+    arg_idx = 0
+    for pat in arg_pattern:
+        if pat == 'p':
+            ret.append(Pointer(args[arg_idx].untagged))
+            arg_idx += 1
+        elif pat == 'n':
+            ret.append(args[arg_idx].untagged.value + args[arg_idx].tag)
+            arg_idx += 1
+    return ret
+
 def read_closure(settings, parsed, pointer):
     try:
         if isinstance(pointer, Argument) or isinstance(pointer, CaseArgument):
@@ -140,7 +152,9 @@ def read_closure(settings, parsed, pointer):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
                 args.append(ptrutil.dereference(settings, parsed, arg_pointer.untagged, []))
 
-            parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer), func_type = 'constructor', args = list(map(lambda arg: Pointer(arg.untagged), args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
+            arg_pattern = 'p' * num_ptrs + 'n' * num_non_ptrs
+
+            parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer), func_type = 'constructor', args = interp_args(args, arg_pattern), pattern = arg_pattern)
             if settings.opts.verbose:
                 print()
 
@@ -334,19 +348,19 @@ def read_code(settings, parsed, address, extra_stack, registers):
                 stack_index = num_args
                 for reg, i in zip(settings.rt.arg_registers, range(num_args)):
                     if reg in registers:
-                        args.append(registers[reg].untagged)
+                        args.append(registers[reg])
                     else:
                         args.append(UnknownValue())
                     stack_index -= 1
-                args += map(lambda ptr: ptr.untagged, stack[:stack_index])
+                args += stack[:stack_index]
 
                 if settings.opts.verbose:
                     print("    Interpretation: call", show.show_pretty_pointer(settings, called), "on", list(map(lambda s: show.show_pretty_value(settings, s), args)))
-                interpretation = Apply(func_type = func_type, func = Pointer(called), args = list(map(Pointer, args)), pattern = arg_pattern)
+                interpretation = Apply(func_type = func_type, func = Pointer(called), args = interp_args(args, arg_pattern), pattern = arg_pattern)
 
                 for arg, pat in zip(args, arg_pattern):
                     if pat == 'p':
-                        worklist.append({'type': 'closure', 'pointer': arg})
+                        worklist.append({'type': 'closure', 'pointer': arg.untagged})
 
             while stack_index < len(stack):
                 assert isinstance(stack[stack_index].untagged, StaticValue)
@@ -357,7 +371,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     num_extra_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
                     if settings.opts.verbose:
                         print("                    then apply the result to", list(map(lambda s: show.show_pretty_value(settings, s), stack[stack_index+1:][:num_extra_args])))
-                    interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(lambda ptr: Pointer(ptr.untagged), stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
+                    interpretation = Apply(func_type = 'closure', func = interpretation, args = interp_args(stack[stack_index+1:][:num_extra_args], arg_pattern), pattern = arg_pattern)
                     for arg in stack[stack_index+1:][:num_extra_args]:
                         worklist.append({'type': 'closure', 'pointer': arg.untagged})
                     stack_index += 1 + num_extra_args

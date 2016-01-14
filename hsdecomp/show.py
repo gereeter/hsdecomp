@@ -40,17 +40,16 @@ def show_pretty_pointer(settings, pointer):
         assert False, "<<unknown type in show_pretty_pointer: " + str(pointer) + ">>"
 
 def show_pretty_nonptr(settings, value, context):
-    assert isinstance(value, StaticValue)
     if isinstance(context, Pointer) and isinstance(context.pointer, StaticValue) and get_name_for_address(settings, context.pointer.value)[:38] == 'ghczmprim_GHCziCString_unpackCStringzh':
         ret = '"'
-        parsed_offset = settings.rodata_offset + value.value
+        parsed_offset = settings.rodata_offset + value
         while settings.binary[parsed_offset] != 0:
             ret += chr(settings.binary[parsed_offset])
             parsed_offset += 1
         ret += '"'
         return ret
     else:
-        return str(value.value)
+        return str(value)
 
 def show_pretty_type(settings, ty, wants_parens):
     if isinstance(ty, UnknownType):
@@ -88,7 +87,7 @@ def render_pretty_interpretation(settings, interp, wants_parens):
                 args.append(render_pretty_interpretation(settings, interp.args[arg_idx], True))
                 arg_idx += 1
             elif pat == 'n':
-                args.append([show_pretty_nonptr(settings, interp.args[arg_idx].pointer, interp.func)])
+                args.append([show_pretty_nonptr(settings, interp.args[arg_idx], interp.func)])
                 arg_idx += 1
             elif pat == 'v':
                 args.append(["state#"])
