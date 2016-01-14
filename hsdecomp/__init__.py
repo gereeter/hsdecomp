@@ -61,7 +61,7 @@ def main():
                 seen[pointer] = None
                 started = True
 
-            pretty = show.show_pretty(settings, pointer)
+            pretty = show.show_pretty_pointer(settings, pointer)
             lhs = pretty
             if pointer in parsed['arg-pattern']:
                 for i, pat in enumerate(parsed['arg-pattern'][pointer]):

@@ -5,17 +5,19 @@ Settings = collections.namedtuple('Settings', 'opts version rt name_to_address a
 Runtime = collections.namedtuple('Runtime', 'halfword word stack_register heap_register main_register arg_registers')
 WordDesc = collections.namedtuple('WordDesc', 'size lg_size struct')
 
-# Values
+# Machine Values
 Tagged = collections.namedtuple('Tagged', 'untagged tag')
+UnknownValue = collections.namedtuple('UnknownValue', '')
+
+# Pointers
+
 Offset = collections.namedtuple('Offset', 'base index')
+StaticValue = collections.namedtuple('StaticValue', 'value')
+Argument = collections.namedtuple('Argument', 'func index')
+CaseArgument = collections.namedtuple('CaseArgument', 'inspection')
 
 HeapPointer = collections.namedtuple('HeapPointer', 'heap_segment')
 StackPointer = collections.namedtuple('StackPointer', '')
-StaticValue = collections.namedtuple('StaticValue', 'value')
-UnknownValue = collections.namedtuple('UnknownValue', '')
-
-Argument = collections.namedtuple('Argument', 'func index')
-CaseArgument = collections.namedtuple('CaseArgument', 'inspection')
 
 # Interpretations
 Pointer = collections.namedtuple('Pointer', 'pointer')

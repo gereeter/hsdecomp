@@ -9,33 +9,32 @@ def get_name_for_address(settings, offset):
     else:
         return "loc_" + str(offset)
 
-def show_pretty(settings, pointer):
-    try:
-        if pointer == None:
-            return "None"
-        elif isinstance(pointer, StaticValue):
-            name = get_name_for_address(settings, pointer.value)
-            if settings.opts.abbreviate_library_names and name_is_library(name):
-                name = name.split('_')[2]
-            return demangle(name)
-        elif isinstance(pointer, Tagged):
-            return "<" + show_pretty(settings, pointer.untagged) + ", tag " + str(pointer.tag) + ">"
-        elif isinstance(pointer, Offset):
-            if isinstance(pointer.base, HeapPointer):
-                location = show_pretty(settings, pointer.base.heap_segment) + "'s heap"
-            elif isinstance(pointer.base, StackPointer):
-                location = "the stack"
-            return "<index " + str(pointer.index) + " in " + location + ">"
-        elif isinstance(pointer, Argument):
-            return demangle(pointer.func) + "_arg_" + str(pointer.index)
-        elif isinstance(pointer, CaseArgument):
-            return show_pretty(settings, pointer.inspection) + "_case_input"
-        elif isinstance(pointer, UnknownValue):
-            return "!unknown!"
-        else:
-            return "<<unknown type in show_pretty: " + str(pointer) + ">>"
-    except:
-        return ("<<Error in show_pretty, pointer = " + str(pointer) + ">>")
+def show_pretty_value(settings, value):
+    if value == None:
+        return "None"
+    elif isinstance(value, Tagged):
+        return "<" + show_pretty_pointer(settings, value.untagged) + ", tag " + str(value.tag) + ">"
+    elif isinstance(value, UnknownValue):
+        return "!unknown!"
+
+def show_pretty_pointer(settings, pointer):
+    if isinstance(pointer, StaticValue):
+        name = get_name_for_address(settings, pointer.value)
+        if settings.opts.abbreviate_library_names and name_is_library(name):
+            name = name.split('_')[2]
+        return demangle(name)
+    elif isinstance(pointer, Offset):
+        if isinstance(pointer.base, HeapPointer):
+            location = show_pretty_pointer(settings, pointer.base.heap_segment) + "'s heap"
+        elif isinstance(pointer.base, StackPointer):
+            location = "the stack"
+        return "<index " + str(pointer.index) + " in " + location + ">"
+    elif isinstance(pointer, Argument):
+        return demangle(pointer.func) + "_arg_" + str(pointer.index)
+    elif isinstance(pointer, CaseArgument):
+        return show_pretty_pointer(settings, pointer.inspection) + "_case_input"
+    else:
+        assert False, "<<unknown type in show_pretty_pointer: " + str(pointer) + ">>"
 
 def show_pretty_nonptr(settings, value, context):
     assert isinstance(value, StaticValue)
@@ -113,13 +112,13 @@ def render_pretty_interpretation(settings, interp, wants_parens):
             rendered = render_pretty_interpretation(settings, arm, False)
             rendered[0] = show_pretty_tag(tag) + " -> " + rendered[0]
             if isinstance(tag, DefaultTag):
-                rendered[0] = show_pretty(settings, CaseArgument(inspection = interp.bound_ptr)) + "@" + rendered[0]
+                rendered[0] = show_pretty_pointer(settings, CaseArgument(inspection = interp.bound_ptr)) + "@" + rendered[0]
             if idx < len(interp.arms) - 1:
                 rendered[-1] = rendered[-1] + ","
 
             ret += map(lambda line: "    " + line, rendered)
     elif isinstance(interp, Pointer):
-        return [show_pretty(settings, interp.pointer)]
+        return [show_pretty_pointer(settings, interp.pointer)]
     else:
         assert False, "Bad interpretation type in show_pretty_interpretation"
 

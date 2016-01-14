@@ -117,7 +117,7 @@ def read_closure(settings, parsed, pointer):
 
         if settings.opts.verbose:
             print("Found closure:")
-            print("    Pointer:", show.show_pretty(settings, pointer))
+            print("    Pointer:", show.show_pretty_pointer(settings, pointer))
 
         if isinstance(pointer, StaticValue) and show.name_is_library(show.get_name_for_address(settings, pointer.value)):
             if settings.opts.verbose:
@@ -161,7 +161,7 @@ def read_closure(settings, parsed, pointer):
         read_function_thunk(settings, parsed, info_address, ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
-        print("Error when processing closure at", show.show_pretty(settings, pointer))
+        print("Error when processing closure at", show.show_pretty_pointer(settings, pointer))
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    No Disassembly Available")
@@ -220,7 +220,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
         parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = list(map(lambda ptr: parsed['interpretations'][StaticValue(value = ptr)], arms)), tags = tags)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
-        print("Error in processing case at", show.show_pretty(settings, pointer))
+        print("Error in processing case at", show.show_pretty_pointer(settings, pointer))
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    Disassembly:")
@@ -278,12 +278,12 @@ def read_code(settings, parsed, address, extra_stack, registers):
 
         parsed['heaps'][StaticValue(value = address)] = mach.heap
         if settings.opts.verbose:
-            print("    Heap:", list(map(lambda h: show.show_pretty(settings, h), mach.heap)))
-            print("    Stack:", list(map(lambda s: show.show_pretty(settings, s), stack)))
+            print("    Heap:", list(map(lambda h: show.show_pretty_value(settings, h), mach.heap)))
+            print("    Stack:", list(map(lambda s: show.show_pretty_value(settings, s), stack)))
 
         if instructions[-1].operands[0].type == capstone.x86.X86_OP_MEM and machine.base_register(instructions[-1].operands[0].mem.base) == settings.rt.stack_register:
             if settings.opts.verbose:
-                print("    Interpretation: return", show.show_pretty(settings, registers[settings.rt.main_register]))
+                print("    Interpretation: return", show.show_pretty_value(settings, registers[settings.rt.main_register]))
                 print()
 
             returned = registers[settings.rt.main_register].untagged
@@ -299,7 +299,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
                 assert instructions[-1].operands[0].mem.disp == 0
 
                 if settings.opts.verbose:
-                    print("    Interpretation: evaluate", show.show_pretty(settings, registers[settings.rt.main_register]))
+                    print("    Interpretation: evaluate", show.show_pretty_value(settings, registers[settings.rt.main_register]))
 
                 evaled = registers[settings.rt.main_register].untagged
 
@@ -327,7 +327,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
 
                 if settings.opts.verbose:
                     print("    Number of non-void args:", num_args)
-                    print("    Called:", show.show_pretty(settings, called))
+                    print("    Called:", show.show_pretty_pointer(settings, called))
                     print("    Arg pattern:", arg_pattern)
 
                 args = []
@@ -341,7 +341,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
                 args += map(lambda ptr: ptr.untagged, stack[:stack_index])
 
                 if settings.opts.verbose:
-                    print("    Interpretation: call", show.show_pretty(settings, called), "on", list(map(lambda s: show.show_pretty(settings, s), args)))
+                    print("    Interpretation: call", show.show_pretty_pointer(settings, called), "on", list(map(lambda s: show.show_pretty_value(settings, s), args)))
                 interpretation = Apply(func_type = func_type, func = Pointer(called), args = list(map(Pointer, args)), pattern = arg_pattern)
 
                 for arg, pat in zip(args, arg_pattern):
@@ -356,18 +356,18 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     arg_pattern = cont_name.split('_')[2]
                     num_extra_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
                     if settings.opts.verbose:
-                        print("                    then apply the result to", list(map(lambda s: show.show_pretty(settings, s), stack[stack_index+1:][:num_extra_args])))
+                        print("                    then apply the result to", list(map(lambda s: show.show_pretty_value(settings, s), stack[stack_index+1:][:num_extra_args])))
                     interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(lambda ptr: Pointer(ptr.untagged), stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
                     for arg in stack[stack_index+1:][:num_extra_args]:
                         worklist.append({'type': 'closure', 'pointer': arg.untagged})
                     stack_index += 1 + num_extra_args
                 elif cont_name == 'stg_upd_frame_info' or cont_name == 'stg_bh_upd_frame_info':
                     if settings.opts.verbose:
-                        print("                    then update the thunk at", show.show_pretty(settings, stack[stack_index + 1]))
+                        print("                    then update the thunk at", show.show_pretty_value(settings, stack[stack_index + 1]))
                     stack_index += 2
                 else:
                     if settings.opts.verbose:
-                        print("                    then inspect using", show.show_pretty(settings, stack[stack_index]))
+                        print("                    then inspect using", show.show_pretty_value(settings, stack[stack_index]))
                     worklist.append({'type': 'case', 'pointer': stack[stack_index].untagged, 'stack': stack[stack_index:], 'scrutinee': interpretation})
                     interpretation = Pointer(stack[stack_index].untagged)
                     stack_index = len(stack)
@@ -387,7 +387,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     assert False,"bad work in worklist"
     except:
         e_type, e_obj, e_tb = sys.exc_info()
-        print("Error in processing code at", show.show_pretty(settings, StaticValue(value = address)))
+        print("Error in processing code at", show.show_pretty_pointer(settings, StaticValue(value = address)))
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    Disassembly:")
