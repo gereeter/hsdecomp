@@ -127,11 +127,12 @@ def read_closure(settings, parsed, pointer):
 
         info_pointer = ptrutil.dereference(settings, parsed, pointer, []).untagged
         assert isinstance(info_pointer, StaticValue)
+        info_address = info_pointer.value
 
-        info_type = read_closure_type(settings, info_pointer.value)
+        info_type = read_closure_type(settings, info_address)
         if info_type[:11] == 'constructor':
-            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*4)
-            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*3)
+            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_address - settings.rt.halfword.size*4)
+            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_address - settings.rt.halfword.size*3)
 
             args = []
             arg_pointer = ptrutil.make_tagged(settings, pointer)._replace(tag = 0)
@@ -148,7 +149,7 @@ def read_closure(settings, parsed, pointer):
 
             return
         elif info_type[:8] == 'function':
-            arg_pattern = read_arg_pattern(settings, info_pointer.value)
+            arg_pattern = read_arg_pattern(settings, info_address)
         else:
             arg_pattern = ''
 
@@ -157,7 +158,7 @@ def read_closure(settings, parsed, pointer):
 
         parsed['interpretations'][pointer] = Pointer(info_pointer)
 
-        read_function_thunk(settings, parsed, info_pointer, ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern)
+        read_function_thunk(settings, parsed, info_address, ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty(settings, pointer))
@@ -227,13 +228,11 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             print("        " + show.show_instruction(insn))
         print()
 
-def read_function_thunk(settings, parsed, pointer, main_register, arg_pattern):
+def read_function_thunk(settings, parsed, address, main_register, arg_pattern):
     if settings.opts.verbose:
         print("Found function/thunk!")
 
-    assert isinstance(pointer, StaticValue)
-
-    info_name = show.get_name_for_address(settings, pointer.value)
+    info_name = show.get_name_for_address(settings, address)
     if settings.opts.verbose:
         print("    Name:", show.demangle(info_name))
         print("    Arg pattern:", arg_pattern)
@@ -255,9 +254,9 @@ def read_function_thunk(settings, parsed, pointer, main_register, arg_pattern):
                 extra_stack.append(ptrutil.make_tagged(settings, Argument(index = i, func = info_name)))
 
     if arg_pattern != '':
-        parsed['arg-pattern'][pointer] = arg_pattern
+        parsed['arg-pattern'][StaticValue(value = address)] = arg_pattern
 
-    read_code(settings, parsed, pointer.value, extra_stack, registers)
+    read_code(settings, parsed, address, extra_stack, registers)
 
 def read_code(settings, parsed, address, extra_stack, registers):
     try:
@@ -321,7 +320,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
                 else:
                     arg_pattern = read_arg_pattern(settings, jmp_address)
                     called = StaticValue(value = jmp_address)
-                    worklist.append({'type': 'function/thunk', 'pointer': called, 'main-register': registers[settings.rt.main_register], 'arg-pattern': arg_pattern})
+                    worklist.append({'type': 'function/thunk', 'address': jmp_address, 'main-register': registers[settings.rt.main_register], 'arg-pattern': arg_pattern})
                     func_type = 'info'
 
                 num_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
@@ -381,14 +380,14 @@ def read_code(settings, parsed, address, extra_stack, registers):
                 if work['type'] == 'closure':
                     read_closure(settings, parsed, work['pointer'])
                 elif work['type'] == 'function/thunk':
-                    read_function_thunk(settings, parsed, work['pointer'], work['main-register'], work['arg-pattern'])
+                    read_function_thunk(settings, parsed, work['address'], work['main-register'], work['arg-pattern'])
                 elif work['type'] == 'case':
                     read_case(settings, parsed, work['pointer'], work['stack'], work['scrutinee'])
                 else:
                     assert False,"bad work in worklist"
     except:
         e_type, e_obj, e_tb = sys.exc_info()
-        print("Error in processing code at", show.show_pretty(settings, pointer))
+        print("Error in processing code at", show.show_pretty(settings, StaticValue(value = address)))
         print("    Error:", e_obj)
         print("    Error Location:", e_tb.tb_lineno)
         print("    Disassembly:")
