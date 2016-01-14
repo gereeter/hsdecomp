@@ -271,7 +271,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
 
         instructions = disasm_from(settings, pointer.value)
 
-        registers[settings.rt.heap_register] = HeapPointer(heap_segment = pointer, index = -1, tag = 0)
+        registers[settings.rt.heap_register] = Offset(HeapPointer(heap_segment = pointer), index = -1, tag = 0)
         registers[settings.rt.stack_register] = StackPointer(index = -len(extra_stack))
         mach = machine.Machine(settings, parsed, extra_stack, registers)
         mach.simulate(instructions)

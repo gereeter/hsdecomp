@@ -71,8 +71,9 @@ class Machine:
     def store(self, operand, value):
         if operand.type == capstone.x86.X86_OP_MEM:
             output = self.read_memory_operand(operand.mem)
-            if isinstance(output, HeapPointer):
+            if isinstance(output, Offset):
                 assert output.tag == 0
+                assert isinstance(output.base, HeapPointer)
                 self.heap[output.index] = value
             elif isinstance(output, StackPointer):
                 adjusted_index = output.index + len(self.stack)
