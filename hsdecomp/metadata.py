@@ -1,12 +1,12 @@
 import capstone
 from elftools.elf.elffile import ELFFile
 
-from hsdecomp import parse
+from hsdecomp.parse import disasm
 from hsdecomp.types import *
 
 def read_version(settings):
     if 'printRtsInfo' in settings.name_to_address:
-        for insn in parse.disasm_from_until(settings, settings.name_to_address['printRtsInfo'], lambda insn: insn.group(capstone.x86.X86_GRP_RET)):
+        for insn in disasm.disasm_from_until(settings, settings.name_to_address['printRtsInfo'], lambda insn: insn.group(capstone.x86.X86_GRP_RET)):
             if insn.mnemonic == 'mov' and insn.operands[1].type == capstone.x86.X86_OP_IMM:
                 str_start = settings.rodata_offset + insn.operands[1].imm
                 if b'\0' in settings.binary[str_start:str_start+20]:
