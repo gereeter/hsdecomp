@@ -171,7 +171,7 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
     first_instructions = disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
     mach.simulate(first_instructions)
 
-    if first_instructions[-2].mnemonic == 'cmp' and first_instructions[-2].operands[0].type == capstone.x86.X86_OP_REG and machine.base_register(first_instructions[-2].operands[0].reg) in mach.registers and isinstance(mach.registers[machine.base_register(first_instructions[-2].operands[0].reg)], CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
+    if first_instructions[-2].mnemonic == 'cmp' and isinstance(mach.load(first_instructions[-2].operands[0]), CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
         assert first_instructions[-1].mnemonic == 'jae'
         small_address = sum(map(lambda insn: insn.size, first_instructions)) + address
         large_address = first_instructions[-1].operands[0].imm
