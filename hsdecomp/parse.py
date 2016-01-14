@@ -125,13 +125,13 @@ def read_closure(settings, parsed, pointer):
                 print()
             return
 
-        info_pointer = ptrutil.dereference(settings, parsed, pointer, [])
-        assert isinstance(info_pointer.untagged, StaticValue)
+        info_pointer = ptrutil.dereference(settings, parsed, pointer, []).untagged
+        assert isinstance(info_pointer, StaticValue)
 
-        info_type = read_closure_type(settings, info_pointer.untagged.value)
+        info_type = read_closure_type(settings, info_pointer.value)
         if info_type[:11] == 'constructor':
-            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.untagged.value - settings.rt.halfword.size*4)
-            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.untagged.value - settings.rt.halfword.size*3)
+            num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*4)
+            num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*3)
 
             args = []
             arg_pointer = Tagged(untagged = pointer, tag = 0)
@@ -139,7 +139,7 @@ def read_closure(settings, parsed, pointer):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
                 args.append(ptrutil.dereference(settings, parsed, arg_pointer.untagged, []))
 
-            parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer.untagged), func_type = 'constructor', args = list(map(lambda arg: Pointer(arg.untagged), args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
+            parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer), func_type = 'constructor', args = list(map(lambda arg: Pointer(arg.untagged), args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
             if settings.opts.verbose:
                 print()
 
@@ -148,16 +148,16 @@ def read_closure(settings, parsed, pointer):
 
             return
         elif info_type[:8] == 'function':
-            arg_pattern = read_arg_pattern(settings, info_pointer.untagged.value)
+            arg_pattern = read_arg_pattern(settings, info_pointer.value)
         else:
             arg_pattern = ''
 
         if settings.opts.verbose:
             print()
 
-        parsed['interpretations'][pointer] = Pointer(info_pointer.untagged)
+        parsed['interpretations'][pointer] = Pointer(info_pointer)
 
-        read_function_thunk(settings, parsed, info_pointer.untagged, Tagged(untagged = pointer, tag = len(arg_pattern)), arg_pattern)
+        read_function_thunk(settings, parsed, info_pointer, Tagged(untagged = pointer, tag = len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty(settings, pointer))
