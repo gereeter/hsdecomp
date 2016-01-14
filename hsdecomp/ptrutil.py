@@ -9,9 +9,10 @@ def read_word(settings, file_offset):
     return struct.unpack(settings.rt.word.struct, settings.binary[file_offset:file_offset+settings.rt.word.size])[0]
 
 def pointer_offset(settings, pointer, offset):
-    if isinstance(pointer, Offset):
+    if isinstance(pointer, Tagged):
         offset += pointer.tag
-        return Offset(base = pointer.base, index = pointer.index + offset // settings.rt.word.size, tag = offset % settings.rt.word.size)
+        assert isinstance(pointer.base, Offset)
+        return Tagged(base = Offset(base = pointer.base.base, index = pointer.base.index + offset // settings.rt.word.size), tag = offset % settings.rt.word.size)
     elif isinstance(pointer, StaticValue):
         return StaticValue(value = pointer.value + offset)
     elif isinstance(pointer, UnknownValue):
@@ -20,7 +21,7 @@ def pointer_offset(settings, pointer, offset):
         assert False,"bad pointer to offset"
 
 def retag(settings, pointer, tag):
-    if isinstance(pointer, Offset):
+    if isinstance(pointer, Tagged):
         return pointer._replace(tag = tag)
     elif isinstance(pointer, StaticValue):
         tagmask = settings.rt.word.size - 1
@@ -36,12 +37,13 @@ def dereference(settings, parsed, pointer, stack):
     if isinstance(pointer, StaticValue):
         assert pointer.value % settings.rt.word.size == 0
         return StaticValue(value = read_word(settings, settings.data_offset + pointer.value))
-    elif isinstance(pointer, Offset):
+    elif isinstance(pointer, Tagged):
         assert pointer.tag == 0
-        if isinstance(pointer.base, HeapPointer):
-            return parsed['heaps'][pointer.base.heap_segment][pointer.index]
-        elif isinstance(pointer.base, StackPointer):
-            return stack[pointer.index]
+        assert isinstance(pointer.base, Offset)
+        if isinstance(pointer.base.base, HeapPointer):
+            return parsed['heaps'][pointer.base.base.heap_segment][pointer.base.index]
+        elif isinstance(pointer.base.base, StackPointer):
+            return stack[pointer.base.index]
     elif isinstance(pointer, UnknownValue):
         return UnknownValue()
     else:

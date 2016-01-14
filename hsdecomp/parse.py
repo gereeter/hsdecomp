@@ -205,7 +205,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
 
         arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
             settings.rt.main_register: CaseArgument(inspection = pointer),
-            settings.rt.stack_register: Offset(base = StackPointer(), index = -len(stack), tag = 0)
+            settings.rt.stack_register: Tagged(base = Offset(base = StackPointer(), index = -len(stack)), tag = 0)
         })
 
         for arm, tag, stack, regs in zip(arms, tags, stacks, registers):
@@ -271,13 +271,13 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
 
         instructions = disasm_from(settings, pointer.value)
 
-        registers[settings.rt.heap_register] = Offset(base = HeapPointer(heap_segment = pointer), index = -1, tag = 0)
-        registers[settings.rt.stack_register] = Offset(base = StackPointer(), index = -len(extra_stack), tag = 0)
+        registers[settings.rt.heap_register] = Tagged(base = Offset(base = HeapPointer(heap_segment = pointer), index = -1), tag = 0)
+        registers[settings.rt.stack_register] = Tagged(base = Offset(base = StackPointer(), index = -len(extra_stack)), tag = 0)
         mach = machine.Machine(settings, parsed, extra_stack, registers)
         mach.simulate(instructions)
 
         registers = mach.registers
-        stack = mach.stack[registers[settings.rt.stack_register].index+len(mach.stack):]
+        stack = mach.stack[registers[settings.rt.stack_register].base.index+len(mach.stack):]
 
         parsed['heaps'][pointer] = mach.heap
         if settings.opts.verbose:

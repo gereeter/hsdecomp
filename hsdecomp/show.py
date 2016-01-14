@@ -18,12 +18,13 @@ def show_pretty(settings, pointer):
             if settings.opts.abbreviate_library_names and name_is_library(name):
                 name = name.split('_')[2]
             return demangle(name)
-        elif isinstance(pointer, Offset):
-            if isinstance(pointer.base, HeapPointer):
-                location = show_pretty(settings, pointer.base.heap_segment) + "'s heap"
-            elif isinstance(pointer.base, StackPointer):
+        elif isinstance(pointer, Tagged):
+            assert isinstance(pointer.base, Offset)
+            if isinstance(pointer.base.base, HeapPointer):
+                location = show_pretty(settings, pointer.base.base.heap_segment) + "'s heap"
+            elif isinstance(pointer.base.base, StackPointer):
                 location = "the stack"
-            return "<index " + str(pointer.index) + " in " + location + ", tag " + str(pointer.tag) + ">"
+            return "<index " + str(pointer.base.index) + " in " + location + ", tag " + str(pointer.tag) + ">"
         elif isinstance(pointer, Argument):
             return demangle(pointer.func) + "_arg_" + str(pointer.index)
         elif isinstance(pointer, CaseArgument):

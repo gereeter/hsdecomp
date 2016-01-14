@@ -71,12 +71,13 @@ class Machine:
     def store(self, operand, value):
         if operand.type == capstone.x86.X86_OP_MEM:
             output = self.read_memory_operand(operand.mem)
-            if isinstance(output, Offset):
+            if isinstance(output, Tagged):
                 assert output.tag == 0
-                if isinstance(output.base, HeapPointer):
-                    self.heap[output.index] = value
-                elif isinstance(output.base, StackPointer):
-                    adjusted_index = output.index + len(self.stack)
+                assert isinstance(output.base, Offset)
+                if isinstance(output.base.base, HeapPointer):
+                    self.heap[output.base.index] = value
+                elif isinstance(output.base.base, StackPointer):
+                    adjusted_index = output.base.index + len(self.stack)
                     if adjusted_index < 0:
                         self.stack = [None] * (-adjusted_index) + self.stack
                         self.stack[0] = value
