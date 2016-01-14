@@ -24,18 +24,6 @@ def disasm_from_until(settings, address, predicate):
                 break
     return instructions
 
-def read_version(settings):
-    if 'printRtsInfo' in settings.name_to_address:
-        for insn in disasm_from_until(settings, settings.name_to_address['printRtsInfo'], lambda insn: insn.group(capstone.x86.X86_GRP_RET)):
-            if insn.mnemonic == 'mov' and insn.operands[1].type == capstone.x86.X86_OP_IMM:
-                str_start = settings.rodata_offset + insn.operands[1].imm
-                if b'\0' in settings.binary[str_start:str_start+20]:
-                    str_len = settings.binary[str_start:str_start+20].index(b'\0')
-                    ver_str = settings.binary[str_start:str_start+str_len]
-                    parts = ver_str.split(b'.')
-                    if len(parts) == 3 and all(map(lambda part: part.isdigit(), parts)):
-                        return (int(parts[0]), int(parts[1]), int(parts[2]))
-
 def retag(settings, pointer, tag):
     if isinstance(pointer, HeapPointer):
         return pointer._replace(tag = tag)
