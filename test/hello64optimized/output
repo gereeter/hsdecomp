@@ -1,5 +1,10 @@
+Error when processing closure at loc_7068154
+    Error: 
+    Error Location: 128
+    No Disassembly Available
+
 Main_main_closure = Main_main_info
 
 Main_main_info state# = Main_main1_info state#
 
-Main_main1_info state# = hPutStr2 stdout (unpackCString# "Hello, World!") True state#
+Main_main1_info state# = hPutStr2 stdout (unpackCString# "Hello, World!") loc_7068154 state#
