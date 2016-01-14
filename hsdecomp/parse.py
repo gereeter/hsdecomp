@@ -125,7 +125,7 @@ def read_closure(settings, parsed, pointer):
                 print()
             return
 
-        info_pointer = ptrutil.dereference(settings, parsed, Tagged(untagged = pointer, tag = 0), [])
+        info_pointer = ptrutil.dereference(settings, parsed, pointer, [])
         assert isinstance(info_pointer.untagged, StaticValue)
 
         info_type = read_closure_type(settings, info_pointer.untagged.value)
@@ -137,7 +137,7 @@ def read_closure(settings, parsed, pointer):
             arg_pointer = Tagged(untagged = pointer, tag = 0)
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
-                args.append(ptrutil.dereference(settings, parsed, arg_pointer, []))
+                args.append(ptrutil.dereference(settings, parsed, arg_pointer.untagged, []))
 
             parsed['interpretations'][pointer] = Apply(func = Pointer(info_pointer.untagged), func_type = 'constructor', args = list(map(lambda arg: Pointer(arg.untagged), args)), pattern = 'p' * num_ptrs + 'n' * num_non_ptrs)
             if settings.opts.verbose:

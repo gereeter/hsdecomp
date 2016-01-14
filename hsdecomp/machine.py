@@ -62,7 +62,11 @@ class Machine:
                 return UnknownValue()
         elif operand.type == capstone.x86.X86_OP_MEM:
             pointer = self.read_memory_operand(operand.mem)
-            return ptrutil.dereference(self.settings, self.parsed, pointer, self.stack)
+            if isinstance(pointer, UnknownValue):
+                return UnknownValue()
+            elif isinstance(pointer, Tagged):
+                assert pointer.tag == 0
+                return ptrutil.dereference(self.settings, self.parsed, pointer.untagged, self.stack)
         elif operand.type == capstone.x86.X86_OP_IMM:
             return Tagged(untagged = StaticValue(value = operand.imm), tag = 0)
         else:

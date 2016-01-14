@@ -27,17 +27,11 @@ def detag(settings, pointer):
         return retag(settings, pointer, 0)
 
 def dereference(settings, parsed, pointer, stack):
-    if isinstance(pointer, Tagged):
-        assert pointer.tag == 0
-        if isinstance(pointer.untagged, Offset):
-            if isinstance(pointer.untagged.base, HeapPointer):
-                return parsed['heaps'][pointer.untagged.base.heap_segment][pointer.untagged.index]
-            elif isinstance(pointer.untagged.base, StackPointer):
-                return stack[pointer.untagged.index]
-        elif isinstance(pointer.untagged, StaticValue):
-            assert pointer.untagged.value % settings.rt.word.size == 0
-            return Tagged(StaticValue(value = read_word(settings, settings.data_offset + pointer.untagged.value)), tag = 0)
-    elif isinstance(pointer, UnknownValue):
-        return UnknownValue()
-    else:
-        assert False, "bad pointer dereference"
+    if isinstance(pointer, Offset):
+        if isinstance(pointer.base, HeapPointer):
+            return parsed['heaps'][pointer.base.heap_segment][pointer.index]
+        elif isinstance(pointer.base, StackPointer):
+            return stack[pointer.index]
+    elif isinstance(pointer, StaticValue):
+        assert pointer.value % settings.rt.word.size == 0
+        return Tagged(StaticValue(value = read_word(settings, settings.data_offset + pointer.value)), tag = 0)
