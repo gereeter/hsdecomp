@@ -12,24 +12,28 @@ def main():
     arg_parser.add_argument('--show-types', action='store_true', dest='show_types')
     arg_parser.add_argument('--no-abbreviate-library-names', action='store_false', dest='abbreviate_library_names')
     arg_parser.add_argument('--verbose', action='store_true', dest='verbose')
-    opts = arg_parser.parse_args()
 
+    opts = arg_parser.parse_args()
     settings = metadata.read_settings(opts)
+
+    # Parse the binary
+
+    entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
 
     parsed = {}
     parsed['heaps'] = {}
     parsed['interpretations'] = {}
     parsed['arg-pattern'] = {}
     parsed['types'] = {}
-
-    entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
-
     parse.read_closure(settings, parsed, entry_pointer)
+
+    # Analyze the inferred code for type information to make case statements clearer
 
     for ptr in parsed['interpretations']:
          infer.infer_type_for(settings, parsed, ptr)
-
     infer.run_rename_tags(settings, parsed)
+
+    # Clean things up for human consumption
 
     optimize.run_destroy_empty_apply(parsed)
     if opts.ignore_strictness:
@@ -38,6 +42,8 @@ def main():
     optimize.run_inline_cheap(parsed)
     if opts.inline_once:
         optimize.run_inline_once(parsed)
+
+    # Display our parsed file
 
     function_worklist = [entry_pointer]
     seen = {}
