@@ -255,9 +255,9 @@ def read_function_thunk(settings, parsed, pointer, main_register, arg_pattern):
     for i in range(len(arg_pattern)):
         if arg_pattern[i] != 'v':
             if i < len(settings.rt.arg_registers):
-                registers[settings.rt.arg_registers[i]] = Argument(index = i, func = info_name)
+                registers[settings.rt.arg_registers[i]] = Tagged(untagged = Argument(index = i, func = info_name), tag = 0)
             else:
-                extra_stack.append(Argument(index = i, func = info_name))
+                extra_stack.append(Tagged(untagged = Argument(index = i, func = info_name), tag = 0))
 
     if arg_pattern != '':
         parsed['arg-pattern'][pointer] = arg_pattern
