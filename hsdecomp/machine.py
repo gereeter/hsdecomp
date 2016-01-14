@@ -68,7 +68,7 @@ class Machine:
                 assert pointer.tag == 0
                 return ptrutil.dereference(self.settings, self.parsed, pointer.untagged, self.stack)
         elif operand.type == capstone.x86.X86_OP_IMM:
-            return Tagged(untagged = StaticValue(value = operand.imm), tag = 0)
+            return ptrutil.make_tagged(self.settings, StaticValue(value = operand.imm))
         else:
             assert False, "unknown type of operand in Machine.load"
 

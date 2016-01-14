@@ -8,6 +8,13 @@ def read_half_word(settings, file_offset):
 def read_word(settings, file_offset):
     return struct.unpack(settings.rt.word.struct, settings.binary[file_offset:file_offset+settings.rt.word.size])[0]
 
+def make_tagged(settings, pointer):
+    if isinstance(pointer, StaticValue):
+        tag = pointer.value % settings.rt.word.size
+        return Tagged(untagged = StaticValue(value = pointer.value - tag), tag = tag)
+    else:
+        return Tagged(untagged = pointer, tag = 0)
+
 def pointer_offset(settings, pointer, offset):
     if isinstance(pointer, Tagged):
         offset += pointer.tag

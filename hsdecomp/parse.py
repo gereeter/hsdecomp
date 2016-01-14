@@ -134,7 +134,7 @@ def read_closure(settings, parsed, pointer):
             num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*3)
 
             args = []
-            arg_pointer = Tagged(untagged = pointer, tag = 0)
+            arg_pointer = ptrutil.make_tagged(settings, pointer)._replace(tag = 0)
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
                 args.append(ptrutil.dereference(settings, parsed, arg_pointer.untagged, []))
@@ -157,7 +157,7 @@ def read_closure(settings, parsed, pointer):
 
         parsed['interpretations'][pointer] = Pointer(info_pointer)
 
-        read_function_thunk(settings, parsed, info_pointer, Tagged(untagged = pointer, tag = len(arg_pattern)), arg_pattern)
+        read_function_thunk(settings, parsed, info_pointer, ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty(settings, pointer))
@@ -204,8 +204,8 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             print("    Name:", show.demangle(info_name))
 
         arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
-            settings.rt.main_register: Tagged(CaseArgument(inspection = pointer), tag = 0),
-            settings.rt.stack_register: Tagged(untagged = Offset(base = StackPointer(), index = -len(stack)), tag = 0)
+            settings.rt.main_register: ptrutil.make_tagged(settings, CaseArgument(inspection = pointer)),
+            settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(stack)))
         })
 
         for arm, tag, stack, regs in zip(arms, tags, stacks, registers):
@@ -250,9 +250,9 @@ def read_function_thunk(settings, parsed, pointer, main_register, arg_pattern):
     for i in range(len(arg_pattern)):
         if arg_pattern[i] != 'v':
             if i < len(settings.rt.arg_registers):
-                registers[settings.rt.arg_registers[i]] = Tagged(untagged = Argument(index = i, func = info_name), tag = 0)
+                registers[settings.rt.arg_registers[i]] = ptrutil.make_tagged(settings, Argument(index = i, func = info_name))
             else:
-                extra_stack.append(Tagged(untagged = Argument(index = i, func = info_name), tag = 0))
+                extra_stack.append(ptrutil.make_tagged(settings, Argument(index = i, func = info_name)))
 
     if arg_pattern != '':
         parsed['arg-pattern'][pointer] = arg_pattern
@@ -271,8 +271,8 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
 
         instructions = disasm_from(settings, pointer.value)
 
-        registers[settings.rt.heap_register] = Tagged(untagged = Offset(base = HeapPointer(heap_segment = pointer), index = -1), tag = 0)
-        registers[settings.rt.stack_register] = Tagged(untagged = Offset(base = StackPointer(), index = -len(extra_stack)), tag = 0)
+        registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(heap_segment = pointer), index = -1))
+        registers[settings.rt.stack_register] = ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(extra_stack)))
         mach = machine.Machine(settings, parsed, extra_stack, registers)
         mach.simulate(instructions)
 
