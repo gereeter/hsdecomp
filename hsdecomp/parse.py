@@ -120,6 +120,8 @@ def interp_args(args, arg_pattern):
         elif pat == 'n':
             ret.append(args[arg_idx].untagged.value + args[arg_idx].tag)
             arg_idx += 1
+        elif pat == 'v':
+            ret.append(None)
     return ret
 
 def read_closure(settings, parsed, pointer):

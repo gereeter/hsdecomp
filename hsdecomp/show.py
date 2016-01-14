@@ -81,14 +81,11 @@ def render_pretty_interpretation(settings, interp, wants_parens):
     if isinstance(interp, Apply):
         func = render_pretty_interpretation(settings, interp.func, False)
         args = []
-        arg_idx = 0
-        for pat in interp.pattern:
+        for arg, pat in zip(interp.args, interp.pattern):
             if pat == 'p':
-                args.append(render_pretty_interpretation(settings, interp.args[arg_idx], True))
-                arg_idx += 1
+                args.append(render_pretty_interpretation(settings, arg, True))
             elif pat == 'n':
-                args.append([show_pretty_nonptr(settings, interp.args[arg_idx], interp.func)])
-                arg_idx += 1
+                args.append([show_pretty_nonptr(settings, arg, interp.func)])
             elif pat == 'v':
                 args.append(["state#"])
             else:
