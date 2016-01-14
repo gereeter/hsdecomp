@@ -28,6 +28,9 @@ def retag(settings, pointer, tag):
         tagmask = settings.rt.word.size - 1
         cleared = pointer.value & ~tagmask
         return StaticValue(value = cleared | tag)
+    elif isinstance(pointer, CaseArgument) or isinstance(pointer, Argument):
+        assert tag == 0
+        return pointer
     else:
         assert False,"bad pointer to retag"
 

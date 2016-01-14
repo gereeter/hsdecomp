@@ -125,9 +125,7 @@ def read_closure(settings, parsed, pointer):
                 print()
             return
 
-        untagged_pointer = ptrutil.retag(settings, pointer, 0)
-
-        info_pointer = ptrutil.dereference(settings, parsed, untagged_pointer, [])
+        info_pointer = ptrutil.dereference(settings, parsed, pointer, [])
         assert isinstance(info_pointer, StaticValue)
 
         info_type = read_closure_type(settings, info_pointer.value)
@@ -136,7 +134,7 @@ def read_closure(settings, parsed, pointer):
             num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_pointer.value - settings.rt.halfword.size*3)
 
             args = []
-            arg_pointer = untagged_pointer
+            arg_pointer = pointer
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
                 args.append(ptrutil.dereference(settings, parsed, arg_pointer, []))
@@ -291,9 +289,10 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 print("    Interpretation: return", show.show_pretty(settings, registers[settings.rt.main_register]))
                 print()
 
-            parsed['interpretations'][pointer] = Pointer(registers[settings.rt.main_register])
+            returned = ptrutil.retag(settings, registers[settings.rt.main_register], 0)
 
-            read_closure(settings, parsed, registers[settings.rt.main_register])
+            parsed['interpretations'][pointer] = Pointer(returned)
+            read_closure(settings, parsed, returned)
         else:
             worklist = []
             uses = []
@@ -316,7 +315,7 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                         arg_pattern = ''
                     else:
                         arg_pattern = func.split('_')[2]
-                    called = registers[settings.rt.main_register]
+                    called = ptrutil.retag(settings, registers[settings.rt.main_register], 0)
                     worklist.append({'type': 'closure', 'pointer': called})
                     func_type = 'closure'
                 else:
@@ -336,11 +335,11 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                 stack_index = num_args
                 for reg, i in zip(settings.rt.arg_registers, range(num_args)):
                     if reg in registers:
-                        args.append(registers[reg])
+                        args.append(ptrutil.retag(settings, registers[reg], 0))
                     else:
                         args.append(UnknownValue())
                     stack_index -= 1
-                args += stack[:stack_index]
+                args += map(lambda ptr: ptrutil.retag(settings, ptr, 0), stack[:stack_index])
 
                 if settings.opts.verbose:
                     print("    Interpretation: call", show.show_pretty(settings, called), "on", list(map(lambda s: show.show_pretty(settings, s), args)))
@@ -359,9 +358,9 @@ def read_code(settings, parsed, pointer, extra_stack, registers):
                     num_extra_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
                     if settings.opts.verbose:
                         print("                    then apply the result to", list(map(lambda s: show.show_pretty(settings, s), stack[stack_index+1:][:num_extra_args])))
-                    interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(Pointer, stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
+                    interpretation = Apply(func_type = 'closure', func = interpretation, args = list(map(lambda ptr: Pointer(ptrutil.retag(settings, ptr, 0)), stack[stack_index+1:][:num_extra_args])), pattern = arg_pattern)
                     for arg in stack[stack_index+1:][:num_extra_args]:
-                        worklist.append({'type': 'closure', 'pointer': arg})
+                        worklist.append({'type': 'closure', 'pointer': ptrutil.retag(settings, arg, 0)})
                     stack_index += 1 + num_extra_args
                 elif cont_name == 'stg_upd_frame_info' or cont_name == 'stg_bh_upd_frame_info':
                     if settings.opts.verbose:
