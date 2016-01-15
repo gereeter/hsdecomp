@@ -31,6 +31,10 @@ def dereference(settings, parsed, pointer, stack):
             return parsed['heaps'][pointer.base.heap_segment][pointer.index]
         elif isinstance(pointer.base, StackPointer):
             return stack[pointer.index]
+        else:
+            assert False, "bad offset pointer to dereference"
     elif isinstance(pointer, StaticValue):
         assert pointer.value % settings.rt.word.size == 0
         return Tagged(StaticValue(value = read_word(settings, settings.data_offset + pointer.value)), tag = 0)
+    else:
+        assert False,"bad pointer to dereference"

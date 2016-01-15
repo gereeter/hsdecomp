@@ -1,0 +1,59 @@
+Error in processing code at loc_4216072
+    Error: bad offset pointer to dereference
+    Error Location: 197
+    Disassembly:
+        mov	rax, qword ptr [rbx + 6]
+        mov	rax, qword ptr [rbx + 0xe]
+        mov	r14d, 0x48c258
+        mov	ebx, 0x6bded8
+        add	rbp, 8
+        jmp	0x47d500
+
+Error in processing case at cBN_info
+    Error: StaticValue(value=4216072)
+    Error Location: 173
+    Disassembly:
+        mov	rax, rbx
+        and	eax, 7
+        cmp	rax, 2
+        jae	0x405508
+        mov	r14d, 0x48c248
+        mov	ebx, 0x6bded8
+        add	rbp, 8
+        jmp	0x47d500
+
+Error in processing code at loc_4215872
+    Error: bad offset pointer to dereference
+    Error Location: 197
+    Disassembly:
+        add	r12, 0x10
+        cmp	r12, qword ptr [r13 + 0x358]
+        ja	0x405480
+        mov	rax, qword ptr [rbx + 6]
+        mov	rax, qword ptr [rbx + 0xe]
+        mov	qword ptr [r12 - 8], 0x405390
+        lea	rbx, qword ptr [r12 - 8]
+        mov	rsi, rax
+        mov	r14, rbx
+        mov	ebx, 0x6b7820
+        add	rbp, 8
+        jmp	0x47d7c0
+
+Error in processing case at cAZ_info
+    Error: StaticValue(value=4215872)
+    Error Location: 173
+    Disassembly:
+        mov	rax, rbx
+        and	eax, 7
+        cmp	rax, 2
+        jae	0x405440
+        mov	r14d, 0x48c228
+        mov	ebx, 0x6bded8
+        add	rbp, 8
+        jmp	0x47d500
+
+Main_main_closure = putStrLn (++ (rjG_info (unpackCString# "TestFoo")) (rlx_info (unpackCString# "TestBar")))
+
+rlx_info rlx_info_arg_0 = cAZ_info
+
+rjG_info rjG_info_arg_0 = cBN_info

@@ -65,8 +65,10 @@ class Machine:
             if isinstance(pointer, UnknownValue):
                 return UnknownValue()
             elif isinstance(pointer, Tagged):
-                assert pointer.tag == 0
-                return ptrutil.dereference(self.settings, self.parsed, pointer.untagged, self.stack)
+                if pointer.tag == 0:
+                    return ptrutil.dereference(self.settings, self.parsed, pointer.untagged, self.stack)
+                else:
+                    return UnknownValue()
         elif operand.type == capstone.x86.X86_OP_IMM:
             return ptrutil.make_tagged(self.settings, StaticValue(value = operand.imm))
         else:
