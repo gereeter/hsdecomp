@@ -110,7 +110,7 @@ def read_function_thunk(settings, parsed, address, main_register, arg_pattern):
 
     read_code(settings, parsed, address, extra_stack, registers)
 
-def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack, initial_registers):
+def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
     mach = machine.Machine(settings, parsed, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
     first_instructions = disasm.disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
     mach.simulate(first_instructions)
@@ -120,8 +120,8 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
         small_address = sum(map(lambda insn: insn.size, first_instructions)) + address
         large_address = first_instructions[-1].operands[0].imm
 
-        arms_small, tags_small, stacks_small, regs_small = gather_case_arms(settings, parsed, small_address, min_tag, first_instructions[-2].operands[1].imm - 1, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
-        arms_large, tags_large, stacks_large, regs_large = gather_case_arms(settings, parsed, large_address, first_instructions[-2].operands[1].imm, max_tag, copy.deepcopy(mach.stack), copy.deepcopy(mach.registers))
+        arms_small, tags_small, stacks_small, regs_small = gather_case_arms(settings, parsed, small_address, min_tag, first_instructions[-2].operands[1].imm - 1, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
+        arms_large, tags_large, stacks_large, regs_large = gather_case_arms(settings, parsed, large_address, first_instructions[-2].operands[1].imm, max_tag, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
 
         arms = arms_small + arms_large
         tags = tags_small + tags_large
@@ -130,11 +130,21 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
     else:
         arms = [address]
         if min_tag == max_tag:
-            tags = [NumericTag(value = min_tag)]
+            tag = NumericTag(value = min_tag)
         else:
-            tags = [DefaultTag()]
-        stacks = [initial_stack]
-        registers = [initial_registers]
+            tag = DefaultTag()
+        tags = [tag]
+
+        # Resimulate the steps taken to get to this point with the correctly tagged CaseArgument
+        mach = machine.Machine(settings, parsed, copy.deepcopy(original_stack), {
+            settings.rt.main_register: ptrutil.make_tagged(settings, CaseArgument(inspection = original_inspection, matched_tag = tag)),
+            settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(original_stack)))
+        })
+        for step in path:
+            mach.simulate(disasm.disasm_from_until(settings, step, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP)))
+
+        stacks = [mach.stack]
+        registers = [mach.registers]
 
     return arms, tags, stacks, registers
 
@@ -150,7 +160,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
         arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
             settings.rt.main_register: ptrutil.make_tagged(settings, CaseArgument(inspection = pointer, matched_tag = DefaultTag())),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(stack)))
-        })
+        }, stack, pointer, [])
 
         for arm, tag, stack, regs in zip(arms, tags, stacks, registers):
             if settings.opts.verbose:
