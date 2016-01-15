@@ -35,7 +35,7 @@ def show_pretty_pointer(settings, pointer):
     elif isinstance(pointer, Argument):
         return demangle(pointer.func) + "_arg_" + str(pointer.index)
     elif isinstance(pointer, CaseArgument):
-        return show_pretty_pointer(settings, pointer.inspection) + "_case_input"
+        return show_pretty_pointer(settings, pointer.inspection) + "_case_input_tag" + show_pretty_tag(pointer.matched_tag)
     else:
         assert False, "<<unknown type in show_pretty_pointer: " + str(pointer) + ">>"
 
@@ -111,7 +111,7 @@ def render_pretty_interpretation(settings, interp, wants_parens):
             rendered = render_pretty_interpretation(settings, arm, False)
             rendered[0] = show_pretty_tag(tag) + " -> " + rendered[0]
             if isinstance(tag, DefaultTag):
-                rendered[0] = show_pretty_pointer(settings, CaseArgument(inspection = interp.bound_ptr)) + "@" + rendered[0]
+                rendered[0] = show_pretty_pointer(settings, CaseArgument(inspection = interp.bound_ptr, matched_tag = tag)) + "@" + rendered[0]
             if idx < len(interp.arms) - 1:
                 rendered[-1] = rendered[-1] + ","
 

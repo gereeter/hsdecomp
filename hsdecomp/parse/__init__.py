@@ -148,7 +148,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             print("    Name:", show.demangle(info_name))
 
         arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
-            settings.rt.main_register: ptrutil.make_tagged(settings, CaseArgument(inspection = pointer)),
+            settings.rt.main_register: ptrutil.make_tagged(settings, CaseArgument(inspection = pointer, matched_tag = DefaultTag())),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(stack)))
         })
 

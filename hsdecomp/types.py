@@ -14,7 +14,7 @@ UnknownValue = collections.namedtuple('UnknownValue', '')
 Offset = collections.namedtuple('Offset', 'base index')
 StaticValue = collections.namedtuple('StaticValue', 'value')
 Argument = collections.namedtuple('Argument', 'func index')
-CaseArgument = collections.namedtuple('CaseArgument', 'inspection')
+CaseArgument = collections.namedtuple('CaseArgument', 'inspection matched_tag')
 
 HeapPointer = collections.namedtuple('HeapPointer', 'heap_segment')
 StackPointer = collections.namedtuple('StackPointer', '')
