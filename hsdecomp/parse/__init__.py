@@ -162,15 +162,16 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(stack)))
         }, stack, pointer, [])
 
+        interp_arms = []
         for arm, tag, stack, regs in zip(arms, tags, stacks, registers):
             if settings.opts.verbose:
                 print()
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern:", tag)
-            read_code(settings, parsed, arm, stack, regs)
+            interp_arms.append(read_code(settings, parsed, arm, stack, regs))
 
-        parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = list(map(lambda ptr: parsed['interpretations'][StaticValue(value = ptr)], arms)), tags = tags)
+        parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = interp_arms, tags = tags)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing case at", show.show_pretty_pointer(settings, pointer))
@@ -187,7 +188,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
             if settings.opts.verbose:
                 print("    Seen before!")
                 print()
-            return
+            return parsed['interpretations'][StaticValue(value = address)]
 
         instructions = disasm.disasm_from(settings, address)
 
@@ -307,6 +308,8 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     assert False,"bad work in worklist"
 
         del parsed['heaps'][address]
+
+        return parsed['interpretations'][StaticValue(value = address)]
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing code at", show.show_pretty_address(settings, address))
