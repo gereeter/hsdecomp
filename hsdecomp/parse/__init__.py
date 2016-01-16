@@ -177,7 +177,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
                 print("    Pattern:", tag)
             interp_arms.append(read_code(settings, parsed, arm, stack, regs))
 
-        parsed['interpretations'][pointer] = Case(scrutinee = scrutinee, bound_ptr = pointer, arms = interp_arms, tags = tags)
+        return Case(scrutinee = scrutinee, bound_ptr = pointer, arms = interp_arms, tags = tags)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing case at", show.show_pretty_pointer(settings, pointer))
@@ -289,8 +289,8 @@ def read_code(settings, parsed, address, extra_stack, registers):
                 else:
                     if settings.opts.verbose:
                         print("                    then inspect using", show.show_pretty_value(settings, stack[stack_index]))
-                    worklist.append({'type': 'case', 'pointer': stack[stack_index].untagged, 'stack': stack[stack_index:], 'scrutinee': interpretation})
-                    interpretation = Pointer(stack[stack_index].untagged)
+                        print()
+                    interpretation = read_case(settings, parsed, stack[stack_index].untagged, stack[stack_index:], interpretation)
                     stack_index = len(stack)
             if settings.opts.verbose:
                 print()
@@ -300,8 +300,6 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     read_closure(settings, parsed, work['pointer'])
                 elif work['type'] == 'function/thunk':
                     read_function_thunk(settings, parsed, work['address'], work['main-register'], work['arg-pattern'])
-                elif work['type'] == 'case':
-                    read_case(settings, parsed, work['pointer'], work['stack'], work['scrutinee'])
                 else:
                     assert False,"bad work in worklist"
 
