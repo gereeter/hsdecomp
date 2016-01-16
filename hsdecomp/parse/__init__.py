@@ -84,6 +84,11 @@ def read_function_thunk(settings, parsed, address, main_register, arg_pattern):
     if settings.opts.verbose:
         print("Found function/thunk!")
 
+    if StaticValue(value = address) in parsed['interpretations']:
+        if settings.opts.verbose:
+            print("    Seen before!")
+        return
+
     info_name = show.get_name_for_address(settings, address)
     if settings.opts.verbose:
         print("    Name:", show.demangle(info_name))
@@ -108,7 +113,8 @@ def read_function_thunk(settings, parsed, address, main_register, arg_pattern):
     if arg_pattern != '':
         parsed['arg-pattern'][StaticValue(value = address)] = arg_pattern
 
-    read_code(settings, parsed, address, extra_stack, registers)
+    parsed['interpretations'][StaticValue(value = address)] = None
+    parsed['interpretations'][StaticValue(value = address)] = read_code(settings, parsed, address, extra_stack, registers)
 
 def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
     mach = machine.Machine(settings, parsed, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
@@ -184,12 +190,6 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
 
 def read_code(settings, parsed, address, extra_stack, registers):
     try:
-        if StaticValue(value = address) in parsed['interpretations']:
-            if settings.opts.verbose:
-                print("    Seen before!")
-                print()
-            return parsed['interpretations'][StaticValue(value = address)]
-
         instructions = disasm.disasm_from(settings, address)
 
         registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(heap_segment = address), index = -1))
@@ -212,7 +212,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
 
             returned = registers[settings.rt.main_register].untagged
 
-            parsed['interpretations'][StaticValue(value = address)] = Pointer(returned)
+            interpretation = Pointer(returned)
             read_closure(settings, parsed, returned)
         else:
             worklist = []
@@ -295,8 +295,6 @@ def read_code(settings, parsed, address, extra_stack, registers):
             if settings.opts.verbose:
                 print()
 
-            parsed['interpretations'][StaticValue(value = address)] = interpretation
-
             for work in worklist:
                 if work['type'] == 'closure':
                     read_closure(settings, parsed, work['pointer'])
@@ -309,7 +307,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
 
         del parsed['heaps'][address]
 
-        return parsed['interpretations'][StaticValue(value = address)]
+        return interpretation
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing code at", show.show_pretty_address(settings, address))
