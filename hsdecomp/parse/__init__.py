@@ -305,6 +305,8 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     read_case(settings, parsed, work['pointer'], work['stack'], work['scrutinee'])
                 else:
                     assert False,"bad work in worklist"
+
+        del parsed['heaps'][address]
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error in processing code at", show.show_pretty_address(settings, address))
