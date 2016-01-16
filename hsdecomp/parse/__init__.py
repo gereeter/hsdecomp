@@ -23,7 +23,7 @@ def interp_args(args, arg_pattern):
 
 def read_closure(settings, parsed, pointer):
     try:
-        if isinstance(pointer, Argument) or isinstance(pointer, Offset) and isinstance(pointer.base, CaseArgument):
+        if isinstance(pointer, Argument) or isinstance(pointer, CaseArgument) or isinstance(pointer, Offset) and isinstance(pointer.base, CasePointer):
             return
 
         if settings.opts.verbose:
@@ -115,7 +115,7 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
     first_instructions = disasm.disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
     mach.simulate(first_instructions)
 
-    if first_instructions[-2].mnemonic == 'cmp' and isinstance(mach.load(first_instructions[-2].operands[0]), Tagged) and isinstance(mach.load(first_instructions[-2].operands[0]).untagged, Offset) and isinstance(mach.load(first_instructions[-2].operands[0]).untagged.base, CaseArgument) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
+    if first_instructions[-2].mnemonic == 'cmp' and isinstance(mach.load(first_instructions[-2].operands[0]), Tagged) and isinstance(mach.load(first_instructions[-2].operands[0]).untagged, Offset) and isinstance(mach.load(first_instructions[-2].operands[0]).untagged.base, CasePointer) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
         assert first_instructions[-1].mnemonic == 'jae'
         small_address = sum(map(lambda insn: insn.size, first_instructions)) + address
         large_address = first_instructions[-1].operands[0].imm
@@ -135,9 +135,9 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
             tag = DefaultTag()
         tags = [tag]
 
-        # Resimulate the steps taken to get to this point with the correctly tagged CaseArgument
+        # Resimulate the steps taken to get to this point with the correctly tagged CasePointer
         mach = machine.Machine(settings, parsed, copy.deepcopy(original_stack), {
-            settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CaseArgument(inspection = original_inspection, matched_tag = tag), index = 0))._replace(tag = min_tag),
+            settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CasePointer(inspection = original_inspection, matched_tag = tag), index = 0))._replace(tag = min_tag),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(original_stack)))
         })
         for step in path:
@@ -158,7 +158,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             print("    Name:", show.demangle(info_name))
 
         arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
-            settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CaseArgument(inspection = pointer, matched_tag = DefaultTag()), index = 0)),
+            settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CasePointer(inspection = pointer, matched_tag = DefaultTag()), index = 0)),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(stack)))
         }, stack, pointer, [])
 

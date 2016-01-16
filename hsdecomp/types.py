@@ -14,10 +14,11 @@ UnknownValue = collections.namedtuple('UnknownValue', '')
 Offset = collections.namedtuple('Offset', 'base index')
 StaticValue = collections.namedtuple('StaticValue', 'value')
 Argument = collections.namedtuple('Argument', 'func index')
-CaseArgument = collections.namedtuple('CaseArgument', 'inspection matched_tag')
+CaseArgument = collections.namedtuple('CaseArgument', 'inspection matched_tag index')
 
 HeapPointer = collections.namedtuple('HeapPointer', 'heap_segment')
 StackPointer = collections.namedtuple('StackPointer', '')
+CasePointer = collections.namedtuple('CasePointer', 'inspection matched_tag')
 
 # Interpretations
 Pointer = collections.namedtuple('Pointer', 'pointer')

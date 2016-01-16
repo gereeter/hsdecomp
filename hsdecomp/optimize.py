@@ -73,7 +73,7 @@ def destroy_empty_apply(interp):
 
 def destroy_strictness(interp, new_interps):
     if isinstance(interp, Case) and len(interp.tags) == 1 and isinstance(interp.tags[0], DefaultTag):
-        case_argument = Offset(base = CaseArgument(inspection = interp.bound_ptr, matched_tag = interp.tags[0]), index = 0)
+        case_argument = Offset(base = CasePointer(inspection = interp.bound_ptr, matched_tag = interp.tags[0]), index = 0)
         new_interps.append((case_argument, interp.scrutinee))
         return interp.arms[0]
 

@@ -31,6 +31,9 @@ def dereference(settings, parsed, pointer, stack):
             return parsed['heaps'][pointer.base.heap_segment][pointer.index]
         elif isinstance(pointer.base, StackPointer):
             return stack[pointer.index]
+        elif isinstance(pointer.base, CasePointer):
+            assert pointer.index > 0
+            return Tagged(CaseArgument(inspection = pointer.base.inspection, matched_tag = pointer.base.matched_tag, index = pointer.index - 1), tag = 0)
         else:
             assert False, "bad offset pointer to dereference"
     elif isinstance(pointer, StaticValue):
