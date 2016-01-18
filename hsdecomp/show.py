@@ -118,6 +118,13 @@ def render_pretty_interpretation(settings, interp, wants_parens):
                 rendered[-1] = rendered[-1] + ","
 
             ret += map(lambda line: "    " + line, rendered)
+    elif isinstance(interp, Lambda):
+        body = render_pretty_interpretation(settings, interp.body, False)
+        arg_str = "\\" + " ".join(["state#" if pat == 'v' else show_pretty_pointer(settings, Argument(func = get_name_for_address(settings, interp.func), index = i)) for i, pat in enumerate(interp.arg_pattern)]) + " ->"
+        if len(body) > 1:
+            ret = [arg_str] + list(map(lambda line: "    " + line, body))
+        else:
+            ret = [arg_str + " " + body[0]]
     elif isinstance(interp, Pointer):
         return [show_pretty_pointer(settings, interp.pointer)]
     else:

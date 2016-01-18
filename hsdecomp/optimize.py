@@ -10,11 +10,13 @@ def foreach_use(interp, func):
         foreach_use(interp.scrutinee, func)
         for arm in interp.arms:
             foreach_use(arm, func)
+    elif isinstance(interp, Lambda):
+        foreach_use(interp.body, func)
     elif isinstance(interp, Pointer):
         func(interp.pointer)
 
 def can_inline(parsed, pointer):
-    return pointer in parsed['interpretations'] and not pointer in parsed['arg-pattern']
+    return pointer in parsed['interpretations']
 
 def is_cheap(parsed, pointer):
     interp = parsed['interpretations'][pointer]
@@ -58,6 +60,12 @@ def run_rewrite(func, interp):
             bound_ptr = interp.bound_ptr,
             arms = list(map(lambda arm: run_rewrite(func, arm), interp.arms)),
             tags = interp.tags
+        )
+    elif isinstance(interp, Lambda):
+        return Lambda(
+            func = interp.func,
+            arg_pattern = interp.arg_pattern,
+            body = run_rewrite(func, interp.body)
         )
     else:
         return interp

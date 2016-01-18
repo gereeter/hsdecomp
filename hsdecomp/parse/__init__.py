@@ -110,11 +110,12 @@ def read_function_thunk(settings, parsed, heaps, address, main_register, arg_pat
             else:
                 extra_stack.append(ptrutil.make_tagged(settings, Argument(index = i, func = info_name)))
 
-    if arg_pattern != '':
-        parsed['arg-pattern'][StaticValue(value = address)] = arg_pattern
-
     parsed['interpretations'][StaticValue(value = address)] = None
-    parsed['interpretations'][StaticValue(value = address)] = read_code(settings, parsed, heaps, address, extra_stack, registers)
+    body = read_code(settings, parsed, heaps, address, extra_stack, registers)
+    if arg_pattern == '':
+        parsed['interpretations'][StaticValue(value = address)] = body
+    else:
+        parsed['interpretations'][StaticValue(value = address)] = Lambda(func = address, arg_pattern = arg_pattern, body = body)
 
 def gather_case_arms(settings, heaps, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
     mach = machine.Machine(settings, heaps, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))

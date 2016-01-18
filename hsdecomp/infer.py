@@ -19,15 +19,7 @@ def infer_type_for(settings, parsed, pointer):
         else:
             parsed['types'][pointer] = UnknownType()
             if pointer in parsed['interpretations']:
-                ty = infer_type(settings, parsed, parsed['interpretations'][pointer])
-                if pointer in parsed['arg-pattern']:
-                    for i, pat in enumerate(parsed['arg-pattern'][pointer]):
-                        if pat == 'v':
-                            arg_ty = StateType()
-                        else:
-                            arg_ty = UnknownType()
-                        ty = FunctionType(arg = arg_ty, result = ty)
-                parsed['types'][pointer] = ty
+                parsed['types'][pointer] = infer_type(settings, parsed, parsed['interpretations'][pointer])
 
 def infer_type(settings, parsed, interp):
     if isinstance(interp, Apply):
@@ -38,6 +30,15 @@ def infer_type(settings, parsed, interp):
             else:
                 assert isinstance(ty, UnknownType)
                 break
+        return ty
+    elif isinstance(interp, Lambda):
+        ty = infer_type(settings, parsed, interp.body)
+        for pat in interp.arg_pattern:
+            if pat == 'v':
+                arg_ty = StateType()
+            else:
+                arg_ty = UnknownType()
+            ty = FunctionType(arg = arg_ty, result = ty)
         return ty
     elif isinstance(interp, Pointer):
         infer_type_for(settings, parsed, interp.pointer)

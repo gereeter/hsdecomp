@@ -22,7 +22,6 @@ def main():
 
     parsed = {}
     parsed['interpretations'] = {}
-    parsed['arg-pattern'] = {}
     parsed['types'] = {}
     parse.read_closure(settings, parsed, [], entry_pointer)
 
@@ -62,18 +61,8 @@ def main():
 
             pretty = show.show_pretty_pointer(settings, pointer)
             lhs = pretty
-            if pointer in parsed['arg-pattern']:
-                for i, pat in enumerate(parsed['arg-pattern'][pointer]):
-                    lhs += " "
-                    if pat == 'v':
-                        lhs += "state#"
-                    else:
-                        lhs += pretty
-                        lhs += "_arg_"
-                        lhs += str(i)
-
             if settings.opts.show_types and pointer in parsed['types']:
                 print(pretty, "::", show.show_pretty_type(settings, parsed['types'][pointer], False))
             print(lhs, "=", show.show_pretty_interpretation(settings, parsed['interpretations'][pointer]))
 
-            optimize.foreach_use(parsed['interpretations'][pointer], lambda interp: (function_worklist if interp in parsed['arg-pattern'] else worklist).append(interp))
+            optimize.foreach_use(parsed['interpretations'][pointer], lambda ptr: (function_worklist if ptr in parsed['interpretations'] and isinstance(parsed['interpretations'][ptr], Lambda) else worklist).append(ptr))

@@ -24,6 +24,7 @@ CasePointer = collections.namedtuple('CasePointer', 'inspection matched_tag')
 Pointer = collections.namedtuple('Pointer', 'pointer')
 Apply = collections.namedtuple('Apply', 'func func_type args pattern')
 Case = collections.namedtuple('Case', 'scrutinee bound_ptr arms tags')
+Lambda = collections.namedtuple('Lambda', 'func arg_pattern body')
 
 # Tags
 NamedTag = collections.namedtuple('NamedTag', 'name')
