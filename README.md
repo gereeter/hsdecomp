@@ -21,3 +21,16 @@ python runner.py path/to/binary
 ```
 python setup.py install
 ```
+
+## Known Limitations
+
+Note that testing has been slim, so there probably are many other limitations not mentioned here.
+
+- No support for stripped binaries.
+- No support for direct manipulation of unboxed types. This generally shouldn't be a problem for unopimized
+  binaries, as all that manipulation should be hidden behind library calls.
+- Limited ability to display useful patterns in `case` expressions. As a replacement for proper names, patterns
+  of the form `<tag n>` are shown.
+- No support for FFI.
+- Limited to x86 and x86-64.
+- Limited to ELF files.
