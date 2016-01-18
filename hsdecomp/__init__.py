@@ -21,11 +21,10 @@ def main():
     entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
 
     parsed = {}
-    parsed['heaps'] = []
     parsed['interpretations'] = {}
     parsed['arg-pattern'] = {}
     parsed['types'] = {}
-    parse.read_closure(settings, parsed, entry_pointer)
+    parse.read_closure(settings, parsed, [], entry_pointer)
 
     # Analyze the inferred code for type information to make case statements clearer
 

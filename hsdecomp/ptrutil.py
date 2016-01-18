@@ -25,10 +25,10 @@ def pointer_offset(settings, pointer, offset):
     else:
         assert False,"bad pointer to offset"
 
-def dereference(settings, parsed, pointer, stack):
+def dereference(settings, parsed, pointer, heaps, stack):
     if isinstance(pointer, Offset):
         if isinstance(pointer.base, HeapPointer):
-            return parsed['heaps'][pointer.base.id][pointer.index]
+            return heaps[pointer.base.id][pointer.index]
         elif isinstance(pointer.base, StackPointer):
             return stack[pointer.index]
         elif isinstance(pointer.base, CasePointer):

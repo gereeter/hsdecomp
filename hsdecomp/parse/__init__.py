@@ -21,7 +21,7 @@ def interp_args(args, arg_pattern):
             ret.append(None)
     return ret
 
-def read_closure(settings, parsed, pointer):
+def read_closure(settings, parsed, heaps, pointer):
     try:
         if isinstance(pointer, Argument) or isinstance(pointer, CaseArgument) or isinstance(pointer, Offset) and isinstance(pointer.base, CasePointer):
             return
@@ -36,7 +36,7 @@ def read_closure(settings, parsed, pointer):
                 print()
             return
 
-        info_pointer = ptrutil.dereference(settings, parsed, pointer, []).untagged
+        info_pointer = ptrutil.dereference(settings, parsed, pointer, heaps, []).untagged
         assert isinstance(info_pointer, StaticValue)
         info_address = info_pointer.value
 
@@ -49,7 +49,7 @@ def read_closure(settings, parsed, pointer):
             arg_pointer = ptrutil.make_tagged(settings, pointer)._replace(tag = 0)
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
-                args.append(ptrutil.dereference(settings, parsed, arg_pointer.untagged, []))
+                args.append(ptrutil.dereference(settings, parsed, arg_pointer.untagged, heaps, []))
 
             arg_pattern = 'p' * num_ptrs + 'n' * num_non_ptrs
 
@@ -71,7 +71,7 @@ def read_closure(settings, parsed, pointer):
 
         parsed['interpretations'][pointer] = Pointer(info_pointer)
 
-        read_function_thunk(settings, parsed, info_address, ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern)
+        read_function_thunk(settings, parsed, heaps, info_address, ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern)
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty_pointer(settings, pointer))
@@ -80,7 +80,7 @@ def read_closure(settings, parsed, pointer):
         print("    No Disassembly Available")
         print()
 
-def read_function_thunk(settings, parsed, address, main_register, arg_pattern):
+def read_function_thunk(settings, parsed, heaps, address, main_register, arg_pattern):
     if settings.opts.verbose:
         print("Found function/thunk!")
 
@@ -114,10 +114,10 @@ def read_function_thunk(settings, parsed, address, main_register, arg_pattern):
         parsed['arg-pattern'][StaticValue(value = address)] = arg_pattern
 
     parsed['interpretations'][StaticValue(value = address)] = None
-    parsed['interpretations'][StaticValue(value = address)] = read_code(settings, parsed, address, extra_stack, registers)
+    parsed['interpretations'][StaticValue(value = address)] = read_code(settings, parsed, heaps, address, extra_stack, registers)
 
-def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
-    mach = machine.Machine(settings, parsed, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
+def gather_case_arms(settings, parsed, heaps, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
+    mach = machine.Machine(settings, parsed, heaps, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
     first_instructions = disasm.disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
     mach.simulate(first_instructions)
 
@@ -126,8 +126,8 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
         small_address = sum(map(lambda insn: insn.size, first_instructions)) + address
         large_address = first_instructions[-1].operands[0].imm
 
-        arms_small, tags_small, stacks_small, regs_small = gather_case_arms(settings, parsed, small_address, min_tag, first_instructions[-2].operands[1].imm - 1, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
-        arms_large, tags_large, stacks_large, regs_large = gather_case_arms(settings, parsed, large_address, first_instructions[-2].operands[1].imm, max_tag, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
+        arms_small, tags_small, stacks_small, regs_small = gather_case_arms(settings, parsed, heaps, small_address, min_tag, first_instructions[-2].operands[1].imm - 1, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
+        arms_large, tags_large, stacks_large, regs_large = gather_case_arms(settings, parsed, heaps, large_address, first_instructions[-2].operands[1].imm, max_tag, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
 
         arms = arms_small + arms_large
         tags = tags_small + tags_large
@@ -142,7 +142,7 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
         tags = [tag]
 
         # Resimulate the steps taken to get to this point with the correctly tagged CasePointer
-        mach = machine.Machine(settings, parsed, copy.deepcopy(original_stack), {
+        mach = machine.Machine(settings, parsed, heaps, copy.deepcopy(original_stack), {
             settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CasePointer(inspection = original_inspection, matched_tag = tag), index = 0))._replace(tag = min_tag),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(original_stack)))
         })
@@ -154,7 +154,7 @@ def gather_case_arms(settings, parsed, address, min_tag, max_tag, initial_stack,
 
     return arms, tags, stacks, registers
 
-def read_case(settings, parsed, pointer, stack, scrutinee):
+def read_case(settings, parsed, heaps, pointer, stack, scrutinee):
     try:
         if settings.opts.verbose:
             print("Found case inspection!")
@@ -163,7 +163,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
         if settings.opts.verbose:
             print("    Name:", show.demangle(info_name))
 
-        arms, tags, stacks, registers = gather_case_arms(settings, parsed, pointer.value, 1, settings.rt.word.size - 1, stack, {
+        arms, tags, stacks, registers = gather_case_arms(settings, parsed, heaps, pointer.value, 1, settings.rt.word.size - 1, stack, {
             settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CasePointer(inspection = pointer, matched_tag = DefaultTag()), index = 0)),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(stack)))
         }, stack, pointer, [])
@@ -175,7 +175,7 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern:", tag)
-            interp_arms.append(read_code(settings, parsed, arm, stack, regs))
+            interp_arms.append(read_code(settings, parsed, heaps, arm, stack, regs))
 
         return Case(scrutinee = scrutinee, bound_ptr = pointer, arms = interp_arms, tags = tags)
     except:
@@ -188,21 +188,20 @@ def read_case(settings, parsed, pointer, stack, scrutinee):
             print("        " + show.show_instruction(insn))
         print()
 
-def read_code(settings, parsed, address, extra_stack, registers):
+def read_code(settings, parsed, heaps, address, extra_stack, registers):
     try:
         instructions = disasm.disasm_from(settings, address)
 
-        num_heaps = len(parsed['heaps'])
-
-        registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(id = num_heaps, owner = address), index = -1))
+        registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(id = len(heaps), owner = address), index = -1))
         registers[settings.rt.stack_register] = ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(extra_stack)))
-        mach = machine.Machine(settings, parsed, extra_stack, registers)
+        mach = machine.Machine(settings, parsed, heaps, extra_stack, registers)
         mach.simulate(instructions)
 
         registers = mach.registers
         stack = mach.stack[registers[settings.rt.stack_register].untagged.index+len(mach.stack):]
 
-        parsed['heaps'].append(mach.heap)
+        new_heaps = heaps + [mach.heap]
+
         if settings.opts.verbose:
             print("    Heap:", list(map(lambda h: show.show_pretty_value(settings, h), mach.heap)))
             print("    Stack:", list(map(lambda s: show.show_pretty_value(settings, s), stack)))
@@ -215,7 +214,7 @@ def read_code(settings, parsed, address, extra_stack, registers):
             returned = registers[settings.rt.main_register].untagged
 
             interpretation = Pointer(returned)
-            read_closure(settings, parsed, returned)
+            read_closure(settings, parsed, new_heaps, returned)
         else:
             worklist = []
             uses = []
@@ -292,21 +291,18 @@ def read_code(settings, parsed, address, extra_stack, registers):
                     if settings.opts.verbose:
                         print("                    then inspect using", show.show_pretty_value(settings, stack[stack_index]))
                         print()
-                    interpretation = read_case(settings, parsed, stack[stack_index].untagged, stack[stack_index:], interpretation)
+                    interpretation = read_case(settings, parsed, new_heaps, stack[stack_index].untagged, stack[stack_index:], interpretation)
                     stack_index = len(stack)
             if settings.opts.verbose:
                 print()
 
             for work in worklist:
                 if work['type'] == 'closure':
-                    read_closure(settings, parsed, work['pointer'])
+                    read_closure(settings, parsed, new_heaps, work['pointer'])
                 elif work['type'] == 'function/thunk':
-                    read_function_thunk(settings, parsed, work['address'], work['main-register'], work['arg-pattern'])
+                    read_function_thunk(settings, parsed, new_heaps, work['address'], work['main-register'], work['arg-pattern'])
                 else:
                     assert False,"bad work in worklist"
-
-        assert len(parsed['heaps']) == num_heaps + 1
-        parsed['heaps'].pop()
 
         return interpretation
     except:
