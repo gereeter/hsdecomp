@@ -25,7 +25,7 @@ def pointer_offset(settings, pointer, offset):
     else:
         assert False,"bad pointer to offset"
 
-def dereference(settings, parsed, pointer, heaps, stack):
+def dereference(settings, pointer, heaps, stack):
     if isinstance(pointer, Offset):
         if isinstance(pointer.base, HeapPointer):
             return heaps[pointer.base.id][pointer.index]

@@ -36,7 +36,7 @@ def read_closure(settings, parsed, heaps, pointer):
                 print()
             return
 
-        info_pointer = ptrutil.dereference(settings, parsed, pointer, heaps, []).untagged
+        info_pointer = ptrutil.dereference(settings, pointer, heaps, []).untagged
         assert isinstance(info_pointer, StaticValue)
         info_address = info_pointer.value
 
@@ -49,7 +49,7 @@ def read_closure(settings, parsed, heaps, pointer):
             arg_pointer = ptrutil.make_tagged(settings, pointer)._replace(tag = 0)
             for i in range(num_ptrs + num_non_ptrs):
                 arg_pointer = ptrutil.pointer_offset(settings, arg_pointer, settings.rt.word.size);
-                args.append(ptrutil.dereference(settings, parsed, arg_pointer.untagged, heaps, []))
+                args.append(ptrutil.dereference(settings, arg_pointer.untagged, heaps, []))
 
             arg_pattern = 'p' * num_ptrs + 'n' * num_non_ptrs
 
@@ -116,8 +116,8 @@ def read_function_thunk(settings, parsed, heaps, address, main_register, arg_pat
     parsed['interpretations'][StaticValue(value = address)] = None
     parsed['interpretations'][StaticValue(value = address)] = read_code(settings, parsed, heaps, address, extra_stack, registers)
 
-def gather_case_arms(settings, parsed, heaps, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
-    mach = machine.Machine(settings, parsed, heaps, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
+def gather_case_arms(settings, heaps, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
+    mach = machine.Machine(settings, heaps, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
     first_instructions = disasm.disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
     mach.simulate(first_instructions)
 
@@ -126,8 +126,8 @@ def gather_case_arms(settings, parsed, heaps, address, min_tag, max_tag, initial
         small_address = sum(map(lambda insn: insn.size, first_instructions)) + address
         large_address = first_instructions[-1].operands[0].imm
 
-        arms_small, tags_small, stacks_small, regs_small = gather_case_arms(settings, parsed, heaps, small_address, min_tag, first_instructions[-2].operands[1].imm - 1, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
-        arms_large, tags_large, stacks_large, regs_large = gather_case_arms(settings, parsed, heaps, large_address, first_instructions[-2].operands[1].imm, max_tag, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
+        arms_small, tags_small, stacks_small, regs_small = gather_case_arms(settings, heaps, small_address, min_tag, first_instructions[-2].operands[1].imm - 1, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
+        arms_large, tags_large, stacks_large, regs_large = gather_case_arms(settings, heaps, large_address, first_instructions[-2].operands[1].imm, max_tag, mach.stack, mach.registers, original_stack, original_inspection, path + [address])
 
         arms = arms_small + arms_large
         tags = tags_small + tags_large
@@ -142,7 +142,7 @@ def gather_case_arms(settings, parsed, heaps, address, min_tag, max_tag, initial
         tags = [tag]
 
         # Resimulate the steps taken to get to this point with the correctly tagged CasePointer
-        mach = machine.Machine(settings, parsed, heaps, copy.deepcopy(original_stack), {
+        mach = machine.Machine(settings, heaps, copy.deepcopy(original_stack), {
             settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CasePointer(inspection = original_inspection, matched_tag = tag), index = 0))._replace(tag = min_tag),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(original_stack)))
         })
@@ -163,7 +163,7 @@ def read_case(settings, parsed, heaps, pointer, stack, scrutinee):
         if settings.opts.verbose:
             print("    Name:", show.demangle(info_name))
 
-        arms, tags, stacks, registers = gather_case_arms(settings, parsed, heaps, pointer.value, 1, settings.rt.word.size - 1, stack, {
+        arms, tags, stacks, registers = gather_case_arms(settings, heaps, pointer.value, 1, settings.rt.word.size - 1, stack, {
             settings.rt.main_register: ptrutil.make_tagged(settings, Offset(base = CasePointer(inspection = pointer, matched_tag = DefaultTag()), index = 0)),
             settings.rt.stack_register: ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(stack)))
         }, stack, pointer, [])
@@ -194,7 +194,7 @@ def read_code(settings, parsed, heaps, address, extra_stack, registers):
 
         registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(id = len(heaps), owner = address), index = -1))
         registers[settings.rt.stack_register] = ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(extra_stack)))
-        mach = machine.Machine(settings, parsed, heaps, extra_stack, registers)
+        mach = machine.Machine(settings, heaps, extra_stack, registers)
         mach.simulate(instructions)
 
         registers = mach.registers
