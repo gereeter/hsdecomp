@@ -23,7 +23,7 @@ def main():
     parsed = {}
     parsed['interpretations'] = {}
     parsed['types'] = {}
-    parse.read_closure(settings, parsed, [], entry_pointer)
+    parse.read_closure(settings, parsed['interpretations'], [], entry_pointer)
 
     # Analyze the inferred code for type information to make case statements clearer
 
