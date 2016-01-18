@@ -21,7 +21,7 @@ def main():
     entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
 
     parsed = {}
-    parsed['heaps'] = {}
+    parsed['heaps'] = []
     parsed['interpretations'] = {}
     parsed['arg-pattern'] = {}
     parsed['types'] = {}

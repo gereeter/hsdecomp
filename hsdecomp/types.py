@@ -16,7 +16,7 @@ StaticValue = collections.namedtuple('StaticValue', 'value')
 Argument = collections.namedtuple('Argument', 'func index')
 CaseArgument = collections.namedtuple('CaseArgument', 'inspection matched_tag index')
 
-HeapPointer = collections.namedtuple('HeapPointer', 'heap_segment')
+HeapPointer = collections.namedtuple('HeapPointer', 'id owner')
 StackPointer = collections.namedtuple('StackPointer', '')
 CasePointer = collections.namedtuple('CasePointer', 'inspection matched_tag')
 
