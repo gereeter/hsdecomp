@@ -28,8 +28,8 @@ def main():
     # Analyze the inferred code for type information to make case statements clearer
 
     for ptr in parsed['interpretations']:
-         infer.infer_type_for(settings, parsed, ptr)
-    infer.run_rename_tags(settings, parsed)
+         infer.infer_type_for(settings, parsed['interpretations'], parsed['types'], ptr)
+    infer.run_rename_tags(settings, parsed['interpretations'], parsed['types'])
 
     # Clean things up for human consumption
 

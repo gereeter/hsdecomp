@@ -12,18 +12,18 @@ known_types = {
     'ghczmprim_GHCziClasses_zl_info': FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = FunctionType(arg = UnknownType(), result = bool_type))),
 }
 
-def infer_type_for(settings, parsed, pointer):
-    if not pointer in parsed['types']:
+def infer_type_for(settings, interps, types, pointer):
+    if not pointer in types:
         if isinstance(pointer, StaticValue) and show.get_name_for_address(settings, pointer.value) in known_types:
-            parsed['types'][pointer] = known_types[show.get_name_for_address(settings, pointer.value)]
+            types[pointer] = known_types[show.get_name_for_address(settings, pointer.value)]
         else:
-            parsed['types'][pointer] = UnknownType()
-            if pointer in parsed['interpretations']:
-                parsed['types'][pointer] = infer_type(settings, parsed, parsed['interpretations'][pointer])
+            types[pointer] = UnknownType()
+            if pointer in interps:
+                types[pointer] = infer_type(settings, interps, types, interps[pointer])
 
-def infer_type(settings, parsed, interp):
+def infer_type(settings, interps, types, interp):
     if isinstance(interp, Apply):
-        ty = infer_type(settings, parsed, interp.func)
+        ty = infer_type(settings, interps, types, interp.func)
         for i in range(len(interp.pattern)):
             if isinstance(ty, FunctionType):
                 ty = ty.result
@@ -32,7 +32,7 @@ def infer_type(settings, parsed, interp):
                 break
         return ty
     elif isinstance(interp, Lambda):
-        ty = infer_type(settings, parsed, interp.body)
+        ty = infer_type(settings, interps, types, interp.body)
         for pat in interp.arg_pattern:
             if pat == 'v':
                 arg_ty = StateType()
@@ -41,17 +41,17 @@ def infer_type(settings, parsed, interp):
             ty = FunctionType(arg = arg_ty, result = ty)
         return ty
     elif isinstance(interp, Pointer):
-        infer_type_for(settings, parsed, interp.pointer)
-        return parsed['types'][interp.pointer]
+        infer_type_for(settings, interps, types, interp.pointer)
+        return types[interp.pointer]
     else:
         return UnknownType()
 
-def run_rename_tags(settings, parsed):
-    optimize.run_rewrite_pass(parsed, lambda interp: rename_tags(settings, parsed, interp))
+def run_rename_tags(settings, interps, types):
+    optimize.run_rewrite_pass(interps, lambda interp: rename_tags(settings, interps, types, interp))
 
-def rename_tags(settings, parsed, interp):
+def rename_tags(settings, interps, types, interp):
     if isinstance(interp, Case):
-        scrut_ty = infer_type(settings, parsed, interp.scrutinee)
+        scrut_ty = infer_type(settings, interps, types, interp.scrutinee)
         if isinstance(scrut_ty, EnumType):
             seen_tags = {}
             for i in range(len(interp.tags)):
