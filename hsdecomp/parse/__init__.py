@@ -106,9 +106,9 @@ def read_function_thunk(settings, interps, heaps, address, main_register, arg_pa
     for i in range(len(arg_pattern)):
         if arg_pattern[i] != 'v':
             if i < len(settings.rt.arg_registers):
-                registers[settings.rt.arg_registers[i]] = ptrutil.make_tagged(settings, Argument(index = i, func = info_name))
+                registers[settings.rt.arg_registers[i]] = ptrutil.make_tagged(settings, Argument(index = i, func = address))
             else:
-                extra_stack.append(ptrutil.make_tagged(settings, Argument(index = i, func = info_name)))
+                extra_stack.append(ptrutil.make_tagged(settings, Argument(index = i, func = address)))
 
     interps[StaticValue(value = address)] = None
     body = read_code(settings, interps, heaps, address, extra_stack, registers)

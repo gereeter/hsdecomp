@@ -35,7 +35,7 @@ def show_pretty_pointer(settings, pointer):
             location = show_pretty_pointer(settings, pointer.base.inspection) + "_case_tag" + show_pretty_tag(pointer.base.matched_tag)
         return "<index " + str(pointer.index) + " in " + location + ">"
     elif isinstance(pointer, Argument):
-        return demangle(pointer.func) + "_arg_" + str(pointer.index)
+        return show_pretty_address(settings, pointer.func) + "_arg_" + str(pointer.index)
     elif isinstance(pointer, CaseArgument):
         return show_pretty_pointer(settings, pointer.inspection) + "_case_tag" + show_pretty_tag(pointer.matched_tag) + "_arg_" + str(pointer.index)
     else:
@@ -123,7 +123,7 @@ def render_pretty_interpretation(settings, interp, paren_level):
     elif isinstance(interp, Lambda):
         prec = 0
         body = render_pretty_interpretation(settings, interp.body, 0)
-        arg_str = "\\" + " ".join(["state#" if pat == 'v' else show_pretty_pointer(settings, Argument(func = get_name_for_address(settings, interp.func), index = i)) for i, pat in enumerate(interp.arg_pattern)]) + " ->"
+        arg_str = "\\" + " ".join(["state#" if pat == 'v' else show_pretty_pointer(settings, Argument(func = interp.func, index = i)) for i, pat in enumerate(interp.arg_pattern)]) + " ->"
         if len(body) > 1:
             ret = [arg_str] + list(map(lambda line: "    " + line, body))
         else:
