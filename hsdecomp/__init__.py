@@ -20,26 +20,25 @@ def main():
 
     entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
 
-    parsed = {}
-    parsed['interpretations'] = {}
-    parsed['types'] = {}
-    parse.read_closure(settings, parsed['interpretations'], [], entry_pointer)
+    interpretations = {}
+    parse.read_closure(settings, interpretations, [], entry_pointer)
 
     # Analyze the inferred code for type information to make case statements clearer
 
-    for ptr in parsed['interpretations']:
-         infer.infer_type_for(settings, parsed['interpretations'], parsed['types'], ptr)
-    infer.run_rename_tags(settings, parsed['interpretations'], parsed['types'])
+    types = {}
+    for ptr in interpretations:
+         infer.infer_type_for(settings, interpretations, types, ptr)
+    infer.run_rename_tags(settings, interpretations, types)
 
     # Clean things up for human consumption
 
-    optimize.run_destroy_empty_apply(parsed['interpretations'])
+    optimize.run_destroy_empty_apply(interpretations)
     if opts.ignore_strictness:
-        optimize.run_destroy_strictness(parsed['interpretations'])
-    parsed['interpretations'] = optimize.run_delete_unused(parsed['interpretations'], entry_pointer)
-    optimize.run_inline_cheap(parsed['interpretations'])
+        optimize.run_destroy_strictness(interpretations)
+    interpretations = optimize.run_delete_unused(interpretations, entry_pointer)
+    optimize.run_inline_cheap(interpretations)
     if opts.inline_once:
-        optimize.run_inline_once(parsed['interpretations'])
+        optimize.run_inline_once(interpretations)
 
     # Display our parsed file
 
@@ -51,7 +50,7 @@ def main():
 
         while len(worklist) > 0:
             pointer = worklist.pop()
-            if pointer in seen or not pointer in parsed['interpretations']:
+            if pointer in seen or not pointer in interpretations:
                 continue
             else:
                 if len(seen) > 0 and not started:
@@ -61,8 +60,8 @@ def main():
 
             pretty = show.show_pretty_pointer(settings, pointer)
             lhs = pretty
-            if settings.opts.show_types and pointer in parsed['types']:
-                print(pretty, "::", show.show_pretty_type(settings, parsed['types'][pointer], False))
-            print(lhs, "=", show.show_pretty_interpretation(settings, parsed['interpretations'][pointer]))
+            if settings.opts.show_types and pointer in types:
+                print(pretty, "::", show.show_pretty_type(settings, types[pointer], False))
+            print(lhs, "=", show.show_pretty_interpretation(settings, interpretations[pointer]))
 
-            optimize.foreach_use(parsed['interpretations'][pointer], lambda ptr: (function_worklist if ptr in parsed['interpretations'] and isinstance(parsed['interpretations'][ptr], Lambda) else worklist).append(ptr))
+            optimize.foreach_use(interpretations[pointer], lambda ptr: (function_worklist if ptr in interpretations and isinstance(interpretations[ptr], Lambda) else worklist).append(ptr))
