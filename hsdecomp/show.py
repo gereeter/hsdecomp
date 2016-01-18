@@ -77,15 +77,16 @@ def show_pretty_tag(tag):
         assert False, "Bad tag type"
 
 def show_pretty_interpretation(settings, interp):
-    return '\n'.join(render_pretty_interpretation(settings, interp, False))
+    return '\n'.join(render_pretty_interpretation(settings, interp, 0))
 
-def render_pretty_interpretation(settings, interp, wants_parens):
+def render_pretty_interpretation(settings, interp, paren_level):
     if isinstance(interp, Apply):
-        func = render_pretty_interpretation(settings, interp.func, False)
+        prec = 1
+        func = render_pretty_interpretation(settings, interp.func, 1)
         args = []
         for arg, pat in zip(interp.args, interp.pattern):
             if pat == 'p':
-                args.append(render_pretty_interpretation(settings, arg, True))
+                args.append(render_pretty_interpretation(settings, arg, 2))
             elif pat == 'n':
                 args.append([show_pretty_nonptr(settings, arg, interp.func)])
             elif pat == 'v':
@@ -101,7 +102,8 @@ def render_pretty_interpretation(settings, interp, wants_parens):
         else:
             ret = [func[0] + ''.join(map(lambda arg: " " + arg[0], args))]
     elif isinstance(interp, Case):
-        scrutinee = render_pretty_interpretation(settings, interp.scrutinee, False)
+        prec = 0
+        scrutinee = render_pretty_interpretation(settings, interp.scrutinee, 0)
         if len(scrutinee) > 1:
             ret = scrutinee
             ret += ["of"]
@@ -110,7 +112,7 @@ def render_pretty_interpretation(settings, interp, wants_parens):
             ret = ["case " + scrutinee[0] + " of"]
 
         for arm, tag, idx in zip(interp.arms, interp.tags, range(len(interp.arms))):
-            rendered = render_pretty_interpretation(settings, arm, False)
+            rendered = render_pretty_interpretation(settings, arm, 0)
             rendered[0] = show_pretty_tag(tag) + " -> " + rendered[0]
             if isinstance(tag, DefaultTag):
                 rendered[0] = show_pretty_pointer(settings, Offset(base = CasePointer(inspection = interp.bound_ptr, matched_tag = tag), index = 0)) + "@" + rendered[0]
@@ -119,18 +121,20 @@ def render_pretty_interpretation(settings, interp, wants_parens):
 
             ret += map(lambda line: "    " + line, rendered)
     elif isinstance(interp, Lambda):
-        body = render_pretty_interpretation(settings, interp.body, False)
+        prec = 0
+        body = render_pretty_interpretation(settings, interp.body, 0)
         arg_str = "\\" + " ".join(["state#" if pat == 'v' else show_pretty_pointer(settings, Argument(func = get_name_for_address(settings, interp.func), index = i)) for i, pat in enumerate(interp.arg_pattern)]) + " ->"
         if len(body) > 1:
             ret = [arg_str] + list(map(lambda line: "    " + line, body))
         else:
             ret = [arg_str + " " + body[0]]
     elif isinstance(interp, Pointer):
-        return [show_pretty_pointer(settings, interp.pointer)]
+        prec = 10
+        ret = [show_pretty_pointer(settings, interp.pointer)]
     else:
         assert False, "Bad interpretation type in show_pretty_interpretation"
 
-    if wants_parens:
+    if paren_level > prec:
         if len(ret) > 1:
             ret[0] = "(" + ret[0]
             ret.append(")")

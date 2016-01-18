@@ -1,15 +1,17 @@
 Main_main_closure = putStrLn
     (++
-        (\rjG_info_arg_0 ->
+        ((\rjG_info_arg_0 ->
             case rjG_info_arg_0 of
                 <tag 1> -> unpackCString# "EmptyFoo",
                 <index 0 in cBN_info_case_tag_DEFAULT>@_DEFAULT -> unpackCString# "NonemptyFoo"
+        )
             (unpackCString# "TestFoo")
         )
-        (\rlx_info_arg_0 ->
+        ((\rlx_info_arg_0 ->
             case rlx_info_arg_0 of
                 <tag 1> -> unpackCString# "EmptyBar",
                 <index 0 in cAZ_info_case_tag_DEFAULT>@_DEFAULT -> ++ (unpackCString# "NonemptyBar: ") cAZ_info_case_tag_DEFAULT_arg_1
+        )
             (unpackCString# "TestBar")
         )
     )

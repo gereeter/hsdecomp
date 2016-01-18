@@ -1,1 +1,1 @@
-Main_main_closure = \state# -> \state# -> hPutStr2 stdout (unpackCString# "Hello, World!") True state# state#
+Main_main_closure = \state# -> (\state# -> hPutStr2 stdout (unpackCString# "Hello, World!") True state#) state#
