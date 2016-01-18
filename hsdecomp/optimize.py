@@ -15,23 +15,23 @@ def foreach_use(interp, func):
     elif isinstance(interp, Pointer):
         func(interp.pointer)
 
-def can_inline(parsed, pointer):
-    return pointer in parsed['interpretations']
+def can_inline(interpretations, pointer):
+    return pointer in interpretations
 
-def is_cheap(parsed, pointer):
-    interp = parsed['interpretations'][pointer]
+def is_cheap(interpretations, pointer):
+    interp = interpretations[pointer]
     return isinstance(interp, Pointer) or (isinstance(interp, Apply) and interp.func_type == 'constructor')
 
-def run_inlining_pass(parsed, predicate):
+def run_inlining_pass(interpretations, predicate):
     inlined = []
-    run_rewrite_pass(parsed, lambda interp: do_inlining(parsed, interp, predicate, inlined))
+    run_rewrite_pass(interpretations, lambda interp: do_inlining(interpretations, interp, predicate, inlined))
     for pointer in inlined:
-        if pointer in parsed['interpretations']:
-            del parsed['interpretations'][pointer]
+        if pointer in interpretations:
+            del interpretations[pointer]
 
-def run_rewrite_pass(parsed, func):
-    for pointer in parsed['interpretations']:
-        parsed['interpretations'][pointer] = run_rewrite(func, parsed['interpretations'][pointer])
+def run_rewrite_pass(interpretations, func):
+    for pointer in interpretations:
+        interpretations[pointer] = run_rewrite(func, interpretations[pointer])
 
 def run_rewrite(func, interp):
     while True:
@@ -70,10 +70,10 @@ def run_rewrite(func, interp):
     else:
         return interp
 
-def do_inlining(parsed, interp, predicate, inlined):
-    if isinstance(interp, Pointer) and can_inline(parsed, interp.pointer) and predicate(interp.pointer):
+def do_inlining(interpretations, interp, predicate, inlined):
+    if isinstance(interp, Pointer) and can_inline(interpretations, interp.pointer) and predicate(interp.pointer):
         inlined.append(interp.pointer)
-        return parsed['interpretations'][interp.pointer]
+        return interpretations[interp.pointer]
 
 def destroy_empty_apply(interp):
     if isinstance(interp, Apply) and len(interp.pattern) == 0:
@@ -87,41 +87,41 @@ def destroy_strictness(interp, new_interps):
 
 #####################
 
-def run_destroy_empty_apply(parsed):
-    run_rewrite_pass(parsed, destroy_empty_apply)
+def run_destroy_empty_apply(interpretations):
+    run_rewrite_pass(interpretations, destroy_empty_apply)
 
-def run_destroy_strictness(parsed):
+def run_destroy_strictness(interpretations):
     new_interps = []
-    run_rewrite_pass(parsed, lambda interp: destroy_strictness(interp, new_interps))
+    run_rewrite_pass(interpretations, lambda interp: destroy_strictness(interp, new_interps))
     for lhs, rhs in new_interps:
-        parsed['interpretations'][lhs] = rhs
+        interpretations[lhs] = rhs
 
-def run_delete_unused(parsed, entry_pointer):
+def run_delete_unused(interpretations, entry_pointer):
     worklist = [entry_pointer]
     saved_interps = {}
     while len(worklist) > 0:
         pointer = worklist.pop()
-        if pointer in saved_interps or not pointer in parsed['interpretations']:
+        if pointer in saved_interps or not pointer in interpretations:
             continue
 
-        interp = parsed['interpretations'][pointer]
+        interp = interpretations[pointer]
         saved_interps[pointer] = interp
         foreach_use(interp, lambda ptr: worklist.append(ptr))
-    parsed['interpretations'] = saved_interps
+    return saved_interps
 
-def run_inline_once(parsed):
+def run_inline_once(interpretations):
     uses = {}
 
     def add_use(interp):
         if interp in uses:
             uses[interp] += 1
 
-    for pointer in parsed['interpretations']:
+    for pointer in interpretations:
         uses[pointer] = 0
-    for pointer in parsed['interpretations']:
-        foreach_use(parsed['interpretations'][pointer], add_use)
+    for pointer in interpretations:
+        foreach_use(interpretations[pointer], add_use)
 
-    run_inlining_pass(parsed, lambda sp: uses[sp] == 1)
+    run_inlining_pass(interpretations, lambda sp: uses[sp] == 1)
 
-def run_inline_cheap(parsed):
-    run_inlining_pass(parsed, lambda sp: is_cheap(parsed, sp))
+def run_inline_cheap(interpretations):
+    run_inlining_pass(interpretations, lambda sp: is_cheap(interpretations, sp))

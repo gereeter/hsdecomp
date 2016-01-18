@@ -33,13 +33,13 @@ def main():
 
     # Clean things up for human consumption
 
-    optimize.run_destroy_empty_apply(parsed)
+    optimize.run_destroy_empty_apply(parsed['interpretations'])
     if opts.ignore_strictness:
-        optimize.run_destroy_strictness(parsed)
-    optimize.run_delete_unused(parsed, entry_pointer)
-    optimize.run_inline_cheap(parsed)
+        optimize.run_destroy_strictness(parsed['interpretations'])
+    parsed['interpretations'] = optimize.run_delete_unused(parsed['interpretations'], entry_pointer)
+    optimize.run_inline_cheap(parsed['interpretations'])
     if opts.inline_once:
-        optimize.run_inline_once(parsed)
+        optimize.run_inline_once(parsed['interpretations'])
 
     # Display our parsed file
 
