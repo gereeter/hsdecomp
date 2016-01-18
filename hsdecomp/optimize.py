@@ -85,7 +85,33 @@ def destroy_strictness(interp, new_interps):
         new_interps.append((case_argument, interp.scrutinee))
         return interp.arms[0]
 
+def apply_functions(substs, interp):
+    if isinstance(interp, Pointer) and interp.pointer in substs:
+        return substs[interp.pointer]
+    elif isinstance(interp, Apply) and isinstance(interp.func, Lambda):
+        for i, arg in enumerate(interp.args[:len(interp.func.arg_pattern)]):
+            substs[Argument(func = interp.func.func, index = i)] = arg
+        if len(interp.pattern) > len(interp.func.arg_pattern):
+            return Apply(
+                func_type = interp.func_type,
+                func = interp.func.body,
+                args = interp.args[len(interp.func.arg_pattern):],
+                pattern = interp.pattern[len(interp.func.arg_pattern):]
+            )
+        elif len(interp.pattern) < len(interp.func.arg_pattern):
+            return Lambda(
+                func = interp.func.func,
+                arg_pattern = interp.func.arg_pattern[len(interp.pattern):],
+                body = interp.func.body
+            )
+        else:
+            return interp.func.body
+
 #####################
+
+def run_apply_functions(interpretations):
+    substitutions = {}
+    run_rewrite_pass(interpretations, lambda interp: apply_functions(substitutions, interp))
 
 def run_destroy_empty_apply(interpretations):
     run_rewrite_pass(interpretations, destroy_empty_apply)
