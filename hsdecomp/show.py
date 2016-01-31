@@ -115,7 +115,7 @@ def render_pretty_interpretation(settings, interp, paren_level):
             rendered = render_pretty_interpretation(settings, arm, 0)
             rendered[0] = show_pretty_tag(tag) + " -> " + rendered[0]
             if isinstance(tag, DefaultTag):
-                rendered[0] = show_pretty_pointer(settings, Offset(base = CasePointer(inspection = interp.bound_ptr, matched_tag = tag), index = 0)) + "@" + rendered[0]
+                rendered[0] = show_pretty_pointer(settings, CaseArgument(inspection = interp.bound_ptr, matched_tag = tag, index = 0)) + "@" + rendered[0]
             if idx < len(interp.arms) - 1:
                 rendered[-1] = rendered[-1] + ","
 
