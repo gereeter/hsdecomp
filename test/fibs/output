@@ -1,0 +1,1 @@
+Main_main_closure = print $fShowInteger (!! STATIC (I# 1000))
