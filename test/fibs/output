@@ -1,11 +1,2 @@
-Error when processing closure at rPx_closure
-    Error: read_closure() missing 1 required positional argument: 'pointer'
-    Error Location: 64
-    No Disassembly Available
-
-Error when processing closure at rjG_closure
-    Error: Tagged(untagged=StaticValue(value=7096176), tag=2)
-    Error Location: 75
-    No Disassembly Available
-
-Main_main_closure = print $fShowInteger (!! rjG_closure (I# 1000))
+Main_main_closure = print $fShowInteger (!! (: (S# 1) (: (S# 1) rPy_info)) (I# 1000))
+rPy_info = zipWith (+ $fNumInteger) (: (S# 1) (: (S# 1) rPy_info)) (tail (: (S# 1) (: (S# 1) rPy_info)))

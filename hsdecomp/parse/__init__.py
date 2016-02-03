@@ -61,7 +61,7 @@ def read_closure(settings, interps, heaps, pointer):
                 print()
 
             for arg in args[:num_ptrs]:
-                read_closure(settings, interps, arg.untagged)
+                read_closure(settings, interps, heaps, arg.untagged)
 
             return
         elif info_type[:11] == 'indirection':
@@ -72,7 +72,7 @@ def read_closure(settings, interps, heaps, pointer):
             if settings.opts.verbose:
                 print()
             read_closure(settings, interps, heaps, new_ptr.untagged)
-            interps[pointer] = interps[new_ptr]
+            interps[pointer] = interps[new_ptr.untagged]
 
             return
         elif info_type[:8] == 'function':
