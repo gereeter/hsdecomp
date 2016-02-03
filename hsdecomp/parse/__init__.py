@@ -72,7 +72,7 @@ def read_closure(settings, interps, heaps, pointer):
             if settings.opts.verbose:
                 print()
             read_closure(settings, interps, heaps, new_ptr.untagged)
-            interps[pointer] = interps[new_ptr.untagged]
+            interps[pointer] = Pointer(new_ptr.untagged)
 
             return
         elif info_type[:8] == 'function':

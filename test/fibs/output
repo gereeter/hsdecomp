@@ -1,4 +1,2 @@
-Main_main_closure = print $fShowInteger (!! (: rPv_closure rPw_closure) (I# 1000))
-rPw_closure = : (S# 1) (zipWith (+ $fNumInteger) rPx_closure (tail rPx_closure))
-rPx_closure = : rPv_closure rPw_closure
-rPv_closure = S# 1
+Main_main_closure = print $fShowInteger (!! rPx_closure (I# 1000))
+rPx_closure = : (S# 1) (: (S# 1) (zipWith (+ $fNumInteger) rPx_closure (tail rPx_closure)))
