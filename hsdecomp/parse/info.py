@@ -80,7 +80,10 @@ def read_closure_type(settings, address):
         20: 'thunk (1 ptr, 1 nonptr)',
         21: 'thunk (0 ptr, 2 nonptr)',
         22: 'thunk (static)',
-        23: 'selector'
+        23: 'selector',
+        28: 'indirection',
+        29: 'indirection (permanent)',
+        30: 'indirection (static)'
     }
     type = ptrutil.read_half_word(settings, settings.text_offset + address - settings.rt.halfword.size*2)
     if type in type_table:

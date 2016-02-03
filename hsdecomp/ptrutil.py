@@ -18,8 +18,11 @@ def make_tagged(settings, pointer):
 def pointer_offset(settings, pointer, offset):
     if isinstance(pointer, Tagged):
         offset += pointer.tag
-        assert isinstance(pointer.untagged, Offset)
-        return Tagged(untagged = Offset(base = pointer.untagged.base, index = pointer.untagged.index + offset // settings.rt.word.size), tag = offset % settings.rt.word.size)
+        if isinstance(pointer.untagged, Offset):
+            untagged = Offset(base = pointer.untagged.base, index = pointer.untagged.index + offset // settings.rt.word.size)
+        elif isinstance(pointer.untagged, StaticValue):
+            untagged = StaticValue(value = pointer.untagged.value + (offset // settings.rt.word.size) * settings.rt.word.size)
+        return Tagged(untagged = untagged, tag = offset % settings.rt.word.size)
     elif isinstance(pointer, UnknownValue):
         return UnknownValue()
     else:
@@ -37,7 +40,7 @@ def dereference(settings, pointer, heaps, stack):
         else:
             assert False, "bad offset pointer to dereference"
     elif isinstance(pointer, StaticValue):
-        assert pointer.value % settings.rt.word.size == 0
-        return Tagged(StaticValue(value = read_word(settings, settings.data_offset + pointer.value)), tag = 0)
+        assert pointer.value % settings.rt.word.size == 0, "misaligned pointer in dereference"
+        return make_tagged(settings, StaticValue(value = read_word(settings, settings.data_offset + pointer.value)))
     else:
         assert False,"bad pointer to dereference"

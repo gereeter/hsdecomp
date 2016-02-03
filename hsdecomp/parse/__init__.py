@@ -41,6 +41,9 @@ def read_closure(settings, interps, heaps, pointer):
         info_address = info_pointer.value
 
         info_type = info.read_closure_type(settings, info_address)
+        if settings.opts.verbose:
+            print("    Type:", info_type)
+
         if info_type[:11] == 'constructor':
             num_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_address - settings.rt.halfword.size*4)
             num_non_ptrs = ptrutil.read_half_word(settings, settings.text_offset + info_address - settings.rt.halfword.size*3)
@@ -59,6 +62,17 @@ def read_closure(settings, interps, heaps, pointer):
 
             for arg in args[:num_ptrs]:
                 read_closure(settings, interps, arg.untagged)
+
+            return
+        elif info_type[:11] == 'indirection':
+            tagged = ptrutil.make_tagged(settings, pointer)._replace(tag = 0)
+            offset = ptrutil.pointer_offset(settings, tagged, settings.rt.word.size)
+            new_ptr = ptrutil.dereference(settings, offset.untagged, heaps, [])
+
+            if settings.opts.verbose:
+                print()
+            read_closure(settings, interps, heaps, new_ptr.untagged)
+            interps[pointer] = interps[new_ptr]
 
             return
         elif info_type[:8] == 'function':
