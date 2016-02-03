@@ -18,9 +18,11 @@ def foreach_use(interp, func):
 def can_inline(interpretations, pointer):
     return pointer in interpretations
 
-def is_cheap(interpretations, pointer):
+def is_basic_constructor(interpretations, pointer):
+    print(pointer)
     interp = interpretations[pointer]
-    return isinstance(interp, Pointer) or (isinstance(interp, Apply) and interp.func_type == 'constructor')
+    print(interp)
+    return isinstance(interp, Apply) and interp.func_type == 'constructor' and 'p' not in interp.pattern
 
 def run_inlining_pass(interpretations, predicate):
     inlined = []
@@ -150,4 +152,7 @@ def run_inline_once(interpretations):
     run_inlining_pass(interpretations, lambda sp: uses[sp] == 1)
 
 def run_inline_cheap(interpretations):
-    run_inlining_pass(interpretations, lambda sp: is_cheap(interpretations, sp))
+    run_inlining_pass(interpretations, lambda sp: isinstance(interpretations[sp], Pointer))
+
+def run_inline_constructors(interpretations):
+    run_inlining_pass(interpretations, lambda sp: is_basic_constructor(interpretations, sp))

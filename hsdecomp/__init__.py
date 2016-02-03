@@ -10,6 +10,7 @@ def main():
     arg_parser.add_argument('--ignore-strictness', action='store_true', dest='ignore_strictness')
     arg_parser.add_argument('--apply-functions', action='store_true', dest='apply_functions')
     arg_parser.add_argument('--no-inline-once', action='store_false', dest='inline_once')
+    arg_parser.add_argument('--inline-constructors', action='store_true', dest='inline_constructors')
     arg_parser.add_argument('--show-types', action='store_true', dest='show_types')
     arg_parser.add_argument('--no-abbreviate-library-names', action='store_false', dest='abbreviate_library_names')
     arg_parser.add_argument('--verbose', action='store_true', dest='verbose')
@@ -40,6 +41,8 @@ def main():
     optimize.run_inline_cheap(interpretations)
     if opts.inline_once:
         optimize.run_inline_once(interpretations)
+    if opts.inline_constructors:
+        optimize.run_inline_constructors(interpretations)
     if opts.apply_functions:
         optimize.run_apply_functions(interpretations)
 
