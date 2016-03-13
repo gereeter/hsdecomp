@@ -55,9 +55,10 @@ def rename_tags(settings, interps, types, interp):
         if isinstance(scrut_ty, EnumType):
             seen_tags = {}
             for i in range(len(interp.tags)):
-                if isinstance(interp.tags[i], NumericTag):
-                    seen_tags[interp.tags[i].value] = None
-                    interp.tags[i] = NamedTag(name = scrut_ty.constructor_names[interp.tags[i].value])
+                tag = interp.tags[i]
+                if isinstance(tag, NumericTag):
+                    seen_tags[tag.value] = None
+                    interp.tags[i] = NamedTag(name = scrut_ty.constructor_names[tag.value], value = tag.value)
             if scrut_ty.complete and len(interp.tags) == len(scrut_ty.constructor_names):
                 assert len(seen_tags) == len(scrut_ty.constructor_names) - 1
                 for i in range(len(interp.tags)):
@@ -66,4 +67,4 @@ def rename_tags(settings, interps, types, interp):
                         break
                 for i in range(len(interp.tags)):
                     if isinstance(interp.tags[i], DefaultTag):
-                        interp.tags[i] = NamedTag(name = scrut_ty.constructor_names[missing_tag])
+                        interp.tags[i] = NamedTag(name = scrut_ty.constructor_names[missing_tag], value = missing_tag)

@@ -27,7 +27,7 @@ Case = collections.namedtuple('Case', 'scrutinee bound_ptr arms tags')
 Lambda = collections.namedtuple('Lambda', 'func arg_pattern body')
 
 # Tags
-NamedTag = collections.namedtuple('NamedTag', 'name')
+NamedTag = collections.namedtuple('NamedTag', 'name value')
 NumericTag = collections.namedtuple('NumericTag', 'value')
 DefaultTag = collections.namedtuple('DefaultTag', '')
 
