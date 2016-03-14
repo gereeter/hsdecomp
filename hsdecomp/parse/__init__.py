@@ -245,7 +245,7 @@ def read_code(settings, interps, heaps, address, extra_stack, registers):
 
                 stack_index = 0
                 interpretation = Pointer(evaled)
-                worklist.append({'type': 'closure', 'pointer': evaled})
+                worklist.append(ClosureWork(pointer = evaled))
             elif instructions[-1].operands[0].type == capstone.x86.X86_OP_IMM:
                 jmp_address = instructions[-1].operands[0].imm
                 if jmp_address in settings.address_to_name and settings.address_to_name[jmp_address][:7] == 'stg_ap_':
@@ -255,12 +255,12 @@ def read_code(settings, interps, heaps, address, extra_stack, registers):
                     else:
                         arg_pattern = func.split('_')[2]
                     called = registers[settings.rt.main_register].untagged
-                    worklist.append({'type': 'closure', 'pointer': called})
+                    worklist.append(ClosureWork(pointer = called))
                     func_type = 'closure'
                 else:
                     arg_pattern = info.read_arg_pattern(settings, jmp_address)
                     called = StaticValue(value = jmp_address)
-                    worklist.append({'type': 'function/thunk', 'address': jmp_address, 'main-register': registers[settings.rt.main_register], 'arg-pattern': arg_pattern})
+                    worklist.append(FunctionThunkWork(address = jmp_address, main_register = registers[settings.rt.main_register], arg_pattern = arg_pattern))
                     func_type = 'info'
 
                 num_args = sum(1 for e in filter(lambda pat: pat != 'v', arg_pattern))
@@ -283,7 +283,7 @@ def read_code(settings, interps, heaps, address, extra_stack, registers):
 
                 for arg, pat in zip(args, arg_pattern):
                     if pat == 'p':
-                        worklist.append({'type': 'closure', 'pointer': arg.untagged})
+                        worklist.append(ClosureWork(pointer = arg.untagged))
 
             while stack_index < len(stack):
                 assert isinstance(stack[stack_index].untagged, StaticValue)
@@ -296,7 +296,7 @@ def read_code(settings, interps, heaps, address, extra_stack, registers):
                         print("                    then apply the result to", list(map(lambda s: show.show_pretty_value(settings, s), stack[stack_index+1:][:num_extra_args])))
                     interpretation = Apply(func_type = 'closure', func = interpretation, args = interp_args(stack[stack_index+1:][:num_extra_args], arg_pattern), pattern = arg_pattern)
                     for arg in stack[stack_index+1:][:num_extra_args]:
-                        worklist.append({'type': 'closure', 'pointer': arg.untagged})
+                        worklist.append(ClosureWork(pointer = arg.untagged))
                     stack_index += 1 + num_extra_args
                 elif cont_name == 'stg_upd_frame_info' or cont_name == 'stg_bh_upd_frame_info':
                     if settings.opts.verbose:
@@ -312,10 +312,10 @@ def read_code(settings, interps, heaps, address, extra_stack, registers):
                 print()
 
             for work in worklist:
-                if work['type'] == 'closure':
-                    read_closure(settings, interps, new_heaps, work['pointer'])
-                elif work['type'] == 'function/thunk':
-                    read_function_thunk(settings, interps, new_heaps, work['address'], work['main-register'], work['arg-pattern'])
+                if isinstance(work, ClosureWork):
+                    read_closure(settings, interps, new_heaps, work.pointer)
+                elif isinstance(work, FunctionThunkWork):
+                    read_function_thunk(settings, interps, new_heaps, work.address, work.main_register, work.arg_pattern)
                 else:
                     assert False,"bad work in worklist"
 

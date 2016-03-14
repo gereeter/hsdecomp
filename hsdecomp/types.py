@@ -36,3 +36,7 @@ UnknownType = collections.namedtuple('UnknownType', '')
 StateType = collections.namedtuple('StateType', '')
 FunctionType = collections.namedtuple('FunctionType', 'arg result')
 EnumType = collections.namedtuple('EnumType', 'constructor_names complete')
+
+# Work
+ClosureWork = collections.namedtuple('ClosureWork', 'pointer')
+FunctionThunkWork = collections.namedtuple('FunctionThunkWork', 'address main_register arg_pattern')
