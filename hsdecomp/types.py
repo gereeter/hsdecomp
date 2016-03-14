@@ -38,5 +38,5 @@ FunctionType = collections.namedtuple('FunctionType', 'arg result')
 EnumType = collections.namedtuple('EnumType', 'constructor_names complete')
 
 # Work
-ClosureWork = collections.namedtuple('ClosureWork', 'pointer')
-FunctionThunkWork = collections.namedtuple('FunctionThunkWork', 'address main_register arg_pattern')
+ClosureWork = collections.namedtuple('ClosureWork', 'heaps pointer')
+FunctionThunkWork = collections.namedtuple('FunctionThunkWork', 'heaps address main_register arg_pattern')
