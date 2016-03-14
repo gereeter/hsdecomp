@@ -1,0 +1,20 @@
+Error in processing code at loc_4218470
+    Error: unknown function type
+    Error Location: 206
+    Disassembly:
+        add	r12, 0x20
+        cmp	r12, qword ptr [r13 + 0x358]
+        ja	0x405ef9
+        mov	qword ptr [r12 - 0x18], 0x405d58
+        mov	qword ptr [r12 - 8], rax
+        mov	qword ptr [r12], rdx
+        lea	rbx, qword ptr [r12 - 0x18]
+        add	rbp, 0x20
+        jmp	0x405dee
+
+Main_main_closure = print $fShowInteger (+ $fNumInteger (rlx_info $fNumInteger $fOrdInteger (S# 5)) (rlx_info $fNumInteger $fOrdInteger (S# 6)))
+
+rlx_info = \rlx_info_arg_0 rlx_info_arg_1 rlx_info_arg_2 ->
+    case < rlx_info_arg_1 rlx_info_arg_2 (fromInteger rlx_info_arg_0 (S# 10)) of
+        False -> rlx_info_arg_2,
+        True -> !!ERROR!!
