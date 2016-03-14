@@ -71,6 +71,7 @@ def read_closure(settings, worklist, heaps, pointer):
         print("    Error Location:", e_tb.tb_lineno)
         print("    No Disassembly Available")
         print()
+        return UnknownInterpretation()
 
 def read_function_thunk(settings, worklist, heaps, address, main_register, arg_pattern):
     extra_stack = []
@@ -160,6 +161,7 @@ def read_case(settings, worklist, heaps, pointer, stack, scrutinee):
         for insn in disasm.disasm_from(settings, pointer.value):
             print("        " + show.show_instruction(insn))
         print()
+        return UnknownInterpretation()
 
 def read_code(settings, worklist, heaps, address, extra_stack, registers):
     try:
@@ -277,3 +279,4 @@ def read_code(settings, worklist, heaps, address, extra_stack, registers):
         for insn in disasm.disasm_from(settings, address):
             print("        " + show.show_instruction(insn))
         print()
+        return UnknownInterpretation()

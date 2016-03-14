@@ -131,6 +131,9 @@ def render_pretty_interpretation(settings, interp, paren_level):
     elif isinstance(interp, Pointer):
         prec = 10
         ret = [show_pretty_pointer(settings, interp.pointer)]
+    elif isinstance(interp, UnknownInterpretation):
+        prec = 10
+        ret = ["!!ERROR!!"]
     else:
         assert False, "Bad interpretation type in show_pretty_interpretation"
 
