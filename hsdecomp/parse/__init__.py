@@ -21,20 +21,11 @@ def interp_args(args, arg_pattern):
             ret.append(None)
     return ret
 
-def read_closure(settings, interps, heaps, pointer):
+def read_closure(settings, worklist, heaps, pointer):
     try:
-        if isinstance(pointer, Argument) or isinstance(pointer, CaseArgument) or isinstance(pointer, Offset) and isinstance(pointer.base, CasePointer):
-            return
-
         if settings.opts.verbose:
             print("Found closure:")
             print("    Pointer:", show.show_pretty_pointer(settings, pointer))
-
-        if isinstance(pointer, StaticValue) and show.name_is_library(show.get_name_for_address(settings, pointer.value)):
-            if settings.opts.verbose:
-                print("    Library defined!")
-                print()
-            return
 
         info_pointer = ptrutil.dereference(settings, pointer, heaps, []).untagged
         assert isinstance(info_pointer, StaticValue)
@@ -56,14 +47,13 @@ def read_closure(settings, interps, heaps, pointer):
 
             arg_pattern = 'p' * num_ptrs + 'n' * num_non_ptrs
 
-            interps[pointer] = Apply(func = Pointer(info_pointer), func_type = 'constructor', args = interp_args(args, arg_pattern), pattern = arg_pattern)
+            for arg in args[:num_ptrs]:
+                worklist.append(ClosureWork(heaps = heaps, pointer = arg.untagged))
+
             if settings.opts.verbose:
                 print()
 
-            for arg in args[:num_ptrs]:
-                read_closure(settings, interps, heaps, arg.untagged)
-
-            return
+            return Apply(func = Pointer(info_pointer), func_type = 'constructor', args = interp_args(args, arg_pattern), pattern = arg_pattern)
         elif info_type[:11] == 'indirection':
             tagged = ptrutil.make_tagged(settings, pointer)._replace(tag = 0)
             offset = ptrutil.pointer_offset(settings, tagged, settings.rt.word.size)
@@ -71,10 +61,9 @@ def read_closure(settings, interps, heaps, pointer):
 
             if settings.opts.verbose:
                 print()
-            read_closure(settings, interps, heaps, new_ptr.untagged)
-            interps[pointer] = Pointer(new_ptr.untagged)
 
-            return
+            worklist.append(ClosureWork(heaps = heaps, pointer = new_ptr.untagged))
+            return Pointer(new_ptr.untagged)
         elif info_type[:8] == 'function':
             arg_pattern = info.read_arg_pattern(settings, info_address)
         else:
@@ -83,9 +72,10 @@ def read_closure(settings, interps, heaps, pointer):
         if settings.opts.verbose:
             print()
 
-        interps[pointer] = Pointer(info_pointer)
+        worklist.append(FunctionThunkWork(heaps = heaps, address = info_address, main_register = ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern = arg_pattern))
 
-        run_worklist(settings, interps, [FunctionThunkWork(heaps = heaps, address = info_address, main_register = ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern = arg_pattern)])
+        return Pointer(info_pointer)
+
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty_pointer(settings, pointer))
@@ -98,7 +88,16 @@ def run_worklist(settings, interps, worklist):
     while len(worklist) > 0:
         work = worklist.pop()
         if isinstance(work, ClosureWork):
-            read_closure(settings, interps, work.heaps, work.pointer)
+            if isinstance(work.pointer, Argument) or isinstance(work.pointer, CaseArgument) or isinstance(work.pointer, Offset) and isinstance(work.pointer.base, CasePointer):
+                continue
+
+            if isinstance(work.pointer, StaticValue) and show.name_is_library(show.get_name_for_address(settings, work.pointer.value)):
+                if settings.opts.verbose:
+                    print("Closure library defined!")
+                    print()
+                continue
+
+            interps[work.pointer] = read_closure(settings, worklist, work.heaps, work.pointer)
         elif isinstance(work, FunctionThunkWork):
             if StaticValue(value = work.address) in interps:
                 if settings.opts.verbose:

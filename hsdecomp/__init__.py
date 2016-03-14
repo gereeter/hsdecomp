@@ -23,7 +23,7 @@ def main():
     entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
 
     interpretations = {}
-    parse.read_closure(settings, interpretations, [], entry_pointer)
+    parse.run_worklist(settings, interpretations, [ClosureWork(heaps = [], pointer = entry_pointer)])
 
     # Analyze the inferred code for type information to make case statements clearer
 
