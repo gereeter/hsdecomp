@@ -1,5 +1,4 @@
 import sys
-import struct
 import copy
 import capstone
 
