@@ -23,10 +23,6 @@ def interp_args(args, arg_pattern):
 
 def read_closure(settings, worklist, heaps, pointer):
     try:
-        if settings.opts.verbose:
-            print("Found closure:")
-            print("    Pointer:", show.show_pretty_pointer(settings, pointer))
-
         info_pointer = ptrutil.dereference(settings, pointer, heaps, []).untagged
         assert isinstance(info_pointer, StaticValue)
         info_address = info_pointer.value
@@ -50,9 +46,6 @@ def read_closure(settings, worklist, heaps, pointer):
             for arg in args[:num_ptrs]:
                 worklist.append(ClosureWork(heaps = heaps, pointer = arg.untagged))
 
-            if settings.opts.verbose:
-                print()
-
             return Apply(func = Pointer(info_pointer), func_type = 'constructor', args = interp_args(args, arg_pattern), pattern = arg_pattern)
         elif info_type[:11] == 'indirection':
             tagged = ptrutil.make_tagged(settings, pointer)._replace(tag = 0)
@@ -69,11 +62,7 @@ def read_closure(settings, worklist, heaps, pointer):
         else:
             arg_pattern = ''
 
-        if settings.opts.verbose:
-            print()
-
         worklist.append(FunctionThunkWork(heaps = heaps, address = info_address, main_register = ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern = arg_pattern))
-
         return Pointer(info_pointer)
 
     except:
@@ -88,25 +77,38 @@ def run_worklist(settings, interps, worklist):
     while len(worklist) > 0:
         work = worklist.pop()
         if isinstance(work, ClosureWork):
+            if settings.opts.verbose:
+                print("Found closure:")
+                print("    Pointer:", show.show_pretty_pointer(settings, pointer))
+
             if isinstance(work.pointer, Argument) or isinstance(work.pointer, CaseArgument) or isinstance(work.pointer, Offset) and isinstance(work.pointer.base, CasePointer):
+                if settings.opts.verbose:
+                    print("    Simple closure!")
+                    print()
                 continue
 
             if isinstance(work.pointer, StaticValue) and show.name_is_library(show.get_name_for_address(settings, work.pointer.value)):
                 if settings.opts.verbose:
-                    print("Closure library defined!")
+                    print("    Library defined!")
                     print()
                 continue
 
             interps[work.pointer] = read_closure(settings, worklist, work.heaps, work.pointer)
         elif isinstance(work, FunctionThunkWork):
+            if settings.opts.verbose:
+                print("Found function/thunk!")
+                print("    Name:", show.demangle(show.get_name_for_address(settings, address)))
+                print("    Arg pattern:", arg_pattern)
+
             if StaticValue(value = work.address) in interps:
                 if settings.opts.verbose:
-                    print("Function/thunk seen before!")
+                    print("    Seen before!")
+                    print()
                 continue
 
             if show.name_is_library(show.get_name_for_address(settings, work.address)):
                 if settings.opts.verbose:
-                    print("Function/thunk library defined!")
+                    print("    Library defined!")
                     print()
                 continue
 
@@ -114,12 +116,11 @@ def run_worklist(settings, interps, worklist):
         else:
             assert False,"bad work in worklist"
 
-def read_function_thunk(settings, worklist, heaps, address, main_register, arg_pattern):
-    if settings.opts.verbose:
-        print("Found function/thunk!")
-        print("    Name:", show.demangle(show.get_name_for_address(settings, address)))
-        print("    Arg pattern:", arg_pattern)
+        if settings.opts.verbose:
+            print()
 
+
+def read_function_thunk(settings, worklist, heaps, address, main_register, arg_pattern):
     extra_stack = []
     registers = {}
     registers[settings.rt.main_register] = main_register
@@ -229,7 +230,6 @@ def read_code(settings, worklist, heaps, address, extra_stack, registers):
         if instructions[-1].operands[0].type == capstone.x86.X86_OP_MEM and machine.base_register(instructions[-1].operands[0].mem.base) == settings.rt.stack_register:
             if settings.opts.verbose:
                 print("    Interpretation: return", show.show_pretty_value(settings, registers[settings.rt.main_register]))
-                print()
 
             returned = registers[settings.rt.main_register].untagged
 
