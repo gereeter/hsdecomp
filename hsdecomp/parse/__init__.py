@@ -85,7 +85,7 @@ def read_closure(settings, interps, heaps, pointer):
 
         interps[pointer] = Pointer(info_pointer)
 
-        read_function_thunk(settings, interps, heaps, info_address, ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern)
+        run_worklist(settings, interps, [FunctionThunkWork(heaps = heaps, address = info_address, main_register = ptrutil.make_tagged(settings, pointer)._replace(tag = len(arg_pattern)), arg_pattern = arg_pattern)])
     except:
         e_type, e_obj, e_tb = sys.exc_info()
         print("Error when processing closure at", show.show_pretty_pointer(settings, pointer))
@@ -94,25 +94,32 @@ def read_closure(settings, interps, heaps, pointer):
         print("    No Disassembly Available")
         print()
 
-def read_function_thunk(settings, interps, heaps, address, main_register, arg_pattern):
+def run_worklist(settings, interps, worklist):
+    while len(worklist) > 0:
+        work = worklist.pop()
+        if isinstance(work, ClosureWork):
+            read_closure(settings, interps, work.heaps, work.pointer)
+        elif isinstance(work, FunctionThunkWork):
+            if StaticValue(value = work.address) in interps:
+                if settings.opts.verbose:
+                    print("Function/thunk seen before!")
+                continue
+
+            if show.name_is_library(show.get_name_for_address(settings, work.address)):
+                if settings.opts.verbose:
+                    print("Function/thunk library defined!")
+                    print()
+                continue
+
+            interps[StaticValue(value = work.address)] = read_function_thunk(settings, worklist, work.heaps, work.address, work.main_register, work.arg_pattern)
+        else:
+            assert False,"bad work in worklist"
+
+def read_function_thunk(settings, worklist, heaps, address, main_register, arg_pattern):
     if settings.opts.verbose:
         print("Found function/thunk!")
-
-    if StaticValue(value = address) in interps:
-        if settings.opts.verbose:
-            print("    Seen before!")
-        return
-
-    info_name = show.get_name_for_address(settings, address)
-    if settings.opts.verbose:
-        print("    Name:", show.demangle(info_name))
+        print("    Name:", show.demangle(show.get_name_for_address(settings, address)))
         print("    Arg pattern:", arg_pattern)
-
-    if show.name_is_library(info_name):
-        if settings.opts.verbose:
-            print("    Library Defined!")
-            print()
-        return
 
     extra_stack = []
     registers = {}
@@ -124,12 +131,11 @@ def read_function_thunk(settings, interps, heaps, address, main_register, arg_pa
             else:
                 extra_stack.append(ptrutil.make_tagged(settings, Argument(index = i, func = address)))
 
-    interps[StaticValue(value = address)] = None
-    body = read_code(settings, interps, heaps, address, extra_stack, registers)
+    body = read_code(settings, worklist, heaps, address, extra_stack, registers)
     if arg_pattern == '':
-        interps[StaticValue(value = address)] = body
+        return body
     else:
-        interps[StaticValue(value = address)] = Lambda(func = address, arg_pattern = arg_pattern, body = body)
+        return Lambda(func = address, arg_pattern = arg_pattern, body = body)
 
 def gather_case_arms(settings, heaps, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
     mach = machine.Machine(settings, heaps, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
@@ -190,7 +196,7 @@ def read_case(settings, worklist, heaps, pointer, stack, scrutinee):
                 print("Found case arm:")
                 print("    From case:", info_name)
                 print("    Pattern:", tag)
-            interp_arms.append(read_code_inner(settings, worklist, heaps, arm, stack, regs))
+            interp_arms.append(read_code(settings, worklist, heaps, arm, stack, regs))
 
         return Case(scrutinee = scrutinee, bound_ptr = pointer, arms = interp_arms, tags = tags)
     except:
@@ -203,21 +209,7 @@ def read_case(settings, worklist, heaps, pointer, stack, scrutinee):
             print("        " + show.show_instruction(insn))
         print()
 
-def read_code(settings, interps, heaps, address, extra_stack, registers):
-    worklist = []
-    ret = read_code_inner(settings, worklist, heaps, address, extra_stack, registers)
-
-    for work in worklist:
-        if isinstance(work, ClosureWork):
-            read_closure(settings, interps, work.heaps, work.pointer)
-        elif isinstance(work, FunctionThunkWork):
-            read_function_thunk(settings, interps, work.heaps, work.address, work.main_register, work.arg_pattern)
-        else:
-            assert False,"bad work in worklist"
-
-    return ret
-
-def read_code_inner(settings, worklist, heaps, address, extra_stack, registers):
+def read_code(settings, worklist, heaps, address, extra_stack, registers):
     try:
         instructions = disasm.disasm_from(settings, address)
 
