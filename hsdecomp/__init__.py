@@ -23,7 +23,7 @@ def main():
     entry_pointer = StaticValue(value = settings.name_to_address[opts.entry])
 
     interpretations = {}
-    parse.run_worklist(settings, interpretations, [ClosureWork(heaps = [], pointer = entry_pointer)])
+    run_worklist(settings, interpretations, [ClosureWork(heaps = [], pointer = entry_pointer)])
 
     # Analyze the inferred code for type information to make case statements clearer
 
@@ -71,3 +71,49 @@ def main():
             print(lhs, "=", show.show_pretty_interpretation(settings, interpretations[pointer]))
 
             optimize.foreach_use(interpretations[pointer], lambda ptr: (function_worklist if ptr in interpretations and isinstance(interpretations[ptr], Lambda) else worklist).append(ptr))
+
+def run_worklist(settings, interps, worklist):
+    while len(worklist) > 0:
+        work = worklist.pop()
+        if isinstance(work, ClosureWork):
+            if settings.opts.verbose:
+                print("Found closure:")
+                print("    Pointer:", show.show_pretty_pointer(settings, pointer))
+
+            if isinstance(work.pointer, Argument) or isinstance(work.pointer, CaseArgument) or isinstance(work.pointer, Offset) and isinstance(work.pointer.base, CasePointer):
+                if settings.opts.verbose:
+                    print("    Simple closure!")
+                    print()
+                continue
+
+            if isinstance(work.pointer, StaticValue) and show.name_is_library(show.get_name_for_address(settings, work.pointer.value)):
+                if settings.opts.verbose:
+                    print("    Library defined!")
+                    print()
+                continue
+
+            interps[work.pointer] = parse.read_closure(settings, worklist, work.heaps, work.pointer)
+        elif isinstance(work, FunctionThunkWork):
+            if settings.opts.verbose:
+                print("Found function/thunk!")
+                print("    Name:", show.demangle(show.get_name_for_address(settings, address)))
+                print("    Arg pattern:", arg_pattern)
+
+            if StaticValue(value = work.address) in interps:
+                if settings.opts.verbose:
+                    print("    Seen before!")
+                    print()
+                continue
+
+            if show.name_is_library(show.get_name_for_address(settings, work.address)):
+                if settings.opts.verbose:
+                    print("    Library defined!")
+                    print()
+                continue
+
+            interps[StaticValue(value = work.address)] = parse.read_function_thunk(settings, worklist, work.heaps, work.address, work.main_register, work.arg_pattern)
+        else:
+            assert False,"bad work in worklist"
+
+        if settings.opts.verbose:
+            print()
