@@ -29,6 +29,7 @@ Note that testing has been slim, so there probably are many other limitations no
 - No support for stripped binaries.
 - No support for direct manipulation of unboxed types. This generally shouldn't be a problem for unopimized
   binaries, as all that manipulation should be hidden behind library calls.
+- No support for tail recursion (which gets compiled to a loop).
 - Limited ability to display useful patterns in `case` expressions. As a replacement for proper names, patterns
   of the form `<tag n>` are shown.
 - No support for FFI.
