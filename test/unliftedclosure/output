@@ -1,0 +1,8 @@
+Main_main_closure = print $fShowInteger (+ $fNumInteger (rlx_info $fNumInteger $fOrdInteger (S# 15)) (rlx_info $fNumInteger $fOrdInteger (S# 16)))
+
+rlx_info = \rlx_info_arg_0 rlx_info_arg_1 rlx_info_arg_2 -> s12J_info (fromInteger rlx_info_arg_0 (S# 1))
+
+s12J_info = \s12J_info_arg_0 ->
+    case < rlx_info_arg_1 s12J_info_arg_0 rlx_info_arg_2 of
+        False -> s12J_info_arg_0,
+        True -> + rlx_info_arg_0 (fromInteger rlx_info_arg_0 (S# 1)) (s12J_info (+ rlx_info_arg_0 s12J_info_arg_0 (fromInteger rlx_info_arg_0 (S# 1))))
