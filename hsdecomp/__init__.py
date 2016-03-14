@@ -78,7 +78,7 @@ def run_worklist(settings, interps, worklist):
         if isinstance(work, ClosureWork):
             if settings.opts.verbose:
                 print("Found closure:")
-                print("    Pointer:", show.show_pretty_pointer(settings, pointer))
+                print("    Pointer:", show.show_pretty_pointer(settings, work.pointer))
 
             if isinstance(work.pointer, Argument) or isinstance(work.pointer, CaseArgument) or isinstance(work.pointer, Offset) and isinstance(work.pointer.base, CasePointer):
                 if settings.opts.verbose:
@@ -96,8 +96,8 @@ def run_worklist(settings, interps, worklist):
         elif isinstance(work, FunctionThunkWork):
             if settings.opts.verbose:
                 print("Found function/thunk!")
-                print("    Name:", show.demangle(show.get_name_for_address(settings, address)))
-                print("    Arg pattern:", arg_pattern)
+                print("    Name:", show.demangle(show.get_name_for_address(settings, work.address)))
+                print("    Arg pattern:", work.arg_pattern)
 
             if StaticValue(value = work.address) in interps:
                 if settings.opts.verbose:
