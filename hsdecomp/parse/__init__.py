@@ -92,7 +92,7 @@ def read_function_thunk(settings, worklist, heaps, address, main_register, arg_p
 
 def gather_case_arms(settings, heaps, address, min_tag, max_tag, initial_stack, initial_registers, original_stack, original_inspection, path):
     mach = machine.Machine(settings, heaps, copy.deepcopy(initial_stack), copy.deepcopy(initial_registers))
-    first_instructions = disasm.disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP))
+    first_instructions = list(disasm.disasm_from_until(settings, address, lambda insn: insn.group(capstone.x86.X86_GRP_JUMP)))
     mach.simulate(first_instructions)
 
     if first_instructions[-2].mnemonic == 'cmp' and isinstance(mach.load(first_instructions[-2].operands[0]), Tagged) and isinstance(mach.load(first_instructions[-2].operands[0]).untagged, Offset) and isinstance(mach.load(first_instructions[-2].operands[0]).untagged.base, CasePointer) and first_instructions[-2].operands[1].type == capstone.x86.X86_OP_IMM:
@@ -165,7 +165,7 @@ def read_case(settings, worklist, heaps, pointer, stack, scrutinee):
 
 def read_code(settings, worklist, heaps, address, extra_stack, registers):
     try:
-        instructions = disasm.disasm_from(settings, address)
+        instructions = list(disasm.disasm_from(settings, address))
 
         registers[settings.rt.heap_register] = ptrutil.make_tagged(settings, Offset(base = HeapPointer(id = len(heaps), owner = address), index = -1))
         registers[settings.rt.stack_register] = ptrutil.make_tagged(settings, Offset(base = StackPointer(), index = -len(extra_stack)))
