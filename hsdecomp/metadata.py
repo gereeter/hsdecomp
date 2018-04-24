@@ -48,15 +48,15 @@ def read_settings(opts):
         address_to_name = {},
         binary = open(opts.file, "rb").read(),
         capstone = capstone.Cs(capstone.CS_ARCH_X86, capstone_mode),
-        text_offset = elffile.get_section_by_name(b'.text')['sh_offset'] - elffile.get_section_by_name(b'.text')['sh_addr'],
-        data_offset = elffile.get_section_by_name(b'.data')['sh_offset'] - elffile.get_section_by_name(b'.data')['sh_addr'],
-        rodata_offset = elffile.get_section_by_name(b'.rodata')['sh_offset'] - elffile.get_section_by_name(b'.rodata')['sh_addr']
+        text_offset = elffile.get_section_by_name('.text')['sh_offset'] - elffile.get_section_by_name('.text')['sh_addr'],
+        data_offset = elffile.get_section_by_name('.data')['sh_offset'] - elffile.get_section_by_name('.data')['sh_addr'],
+        rodata_offset = elffile.get_section_by_name('.rodata')['sh_offset'] - elffile.get_section_by_name('.rodata')['sh_addr']
     )
 
-    symtab = elffile.get_section_by_name(b'.symtab')
+    symtab = elffile.get_section_by_name('.symtab')
     for sym in symtab.iter_symbols():
         try:
-            name = str(sym.name, 'ascii')
+            name = str(sym.name)
             offset = sym['st_value']
             settings.name_to_address[name] = offset
             settings.address_to_name[offset] = name

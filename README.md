@@ -11,7 +11,7 @@ A decompiler for GHC-compiled Haskell
 To decompile a file without any installation steps, simply run the `runner.py` script on the file you want to decompile:
 
 ```
-python runner.py path/to/binary
+python3 runner.py path/to/binary
 ```
 
 ## Installation
@@ -19,7 +19,7 @@ python runner.py path/to/binary
 `hsdecomp` utilizes `setuptools` for packaging and installation. To install:
 
 ```
-python setup.py install
+python3 setup.py install
 ```
 
 ## Known Limitations
